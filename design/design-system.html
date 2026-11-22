@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mauna Design System</title>
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --accent:#4C47C4; --accent-text:#4540B8; --accent-tint:rgba(76,71,196,.09); --accent-pressed:#3F3AA8;
+  --label:#1D1D1F; --label2:#6E6E73; --label3:#A1A1A6; --hair:rgba(0,0,0,.06);
+  --page:#F5F5F7; --surface:#FFFFFF; --well:rgba(0,0,0,.035); --well2:rgba(0,0,0,.06);
+  --control:#FFFFFF;
+  --orange:#E8890C; --green:#1F9D45; --red:#E5484D;
+  /* elevation: ring + soft shadow, never a solid border */
+  --e1:0 0 0 .5px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --e2:0 0 0 .5px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04),0 6px 16px -4px rgba(20,20,50,.07);
+  --e3:0 0 0 .5px rgba(0,0,0,.10),0 2px 4px rgba(0,0,0,.04),0 24px 60px -12px rgba(20,20,60,.28);
+  --edge:inset 0 .5px 0 rgba(255,255,255,.9);
+  --pop:rgba(250,250,252,.74); --pop-row:rgba(0,0,0,.045);
+  --menubar:rgba(255,255,255,.42); --menubar-fg:#1D1D1F;
+  --stage: radial-gradient(120% 90% at 10% 0%,#8E8AE8 0%,transparent 60%),radial-gradient(90% 80% at 100% 100%,#F2B9A0 0%,transparent 60%),linear-gradient(160deg,#B9B4F0,#E9C7C0 60%,#C7D2EE);
+  --ease-out:cubic-bezier(.23,1,.32,1); --ease-in-out:cubic-bezier(.77,0,.175,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --accent:#6762E8; --accent-text:#A9A5FF; --accent-tint:rgba(140,136,255,.15); --accent-pressed:#5A55D6;
+  --label:#F5F5F7; --label2:#A1A1A6; --label3:#6E6E73; --hair:rgba(255,255,255,.07);
+  --page:#0A0A0C; --surface:#151518; --well:rgba(255,255,255,.045); --well2:rgba(255,255,255,.08);
+  --control:#2E2E33; --orange:#FF9F0A; --green:#32D74B; --red:#FF6961;
+  --e1:0 0 0 .5px rgba(255,255,255,.08); --e2:0 0 0 .5px rgba(255,255,255,.08),0 8px 24px -8px rgba(0,0,0,.6);
+  --e3:0 0 0 .5px rgba(255,255,255,.14),0 30px 70px -10px rgba(0,0,0,.7);
+  --edge:inset 0 .5px 0 rgba(255,255,255,.12);
+  --pop:rgba(34,34,40,.72); --pop-row:rgba(255,255,255,.07);
+  --menubar:rgba(20,20,26,.45); --menubar-fg:#F5F5F7;
+  --stage: radial-gradient(120% 90% at 10% 0%,#3B3690 0%,transparent 60%),radial-gradient(90% 80% at 100% 100%,#6A3A2E 0%,transparent 60%),linear-gradient(160deg,#1A1830,#2A1E22 60%,#141C2A);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --accent:#6762E8; --accent-text:#A9A5FF; --accent-tint:rgba(140,136,255,.15); --accent-pressed:#5A55D6;
+  --label:#F5F5F7; --label2:#A1A1A6; --label3:#6E6E73; --hair:rgba(255,255,255,.07);
+  --page:#0A0A0C; --surface:#151518; --well:rgba(255,255,255,.045); --well2:rgba(255,255,255,.08);
+  --control:#2E2E33; --orange:#FF9F0A; --green:#32D74B; --red:#FF6961;
+  --e1:0 0 0 .5px rgba(255,255,255,.08); --e2:0 0 0 .5px rgba(255,255,255,.08),0 8px 24px -8px rgba(0,0,0,.6);
+  --e3:0 0 0 .5px rgba(255,255,255,.14),0 30px 70px -10px rgba(0,0,0,.7);
+  --edge:inset 0 .5px 0 rgba(255,255,255,.12);
+  --pop:rgba(34,34,40,.72); --pop-row:rgba(255,255,255,.07);
+  --menubar:rgba(20,20,26,.45); --menubar-fg:#F5F5F7;
+  --stage: radial-gradient(120% 90% at 10% 0%,#3B3690 0%,transparent 60%),radial-gradient(90% 80% at 100% 100%,#6A3A2E 0%,transparent 60%),linear-gradient(160deg,#1A1830,#2A1E22 60%,#141C2A);
+  color-scheme:dark;
+}
+@media (prefers-reduced-transparency:reduce){:root{--pop:var(--surface);--menubar:var(--surface)}}
+
+/* ============ BASE ============ */
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--label);font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;transition:background-color .3s ease,color .3s ease}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px 120px}
+.tnum{font-variant-numeric:tabular-nums}
+code,.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px}
+code{background:var(--well);padding:1px 5px;border-radius:5px}
+p{max-width:65ch}
+
+/* header with scroll-edge fade instead of a hard divider */
+.top{position:sticky;top:0;z-index:20;background:linear-gradient(var(--page) 70%,transparent);padding:14px 0 22px}
+.top .in{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.brand small{font-weight:400;color:var(--label3)}
+.top nav{display:flex;gap:2px}
+.top nav a{color:var(--label2);text-decoration:none;font-size:12.5px;padding:5px 9px;border-radius:7px;transition:background-color .15s ease,color .15s ease}
+@media (hover:hover) and (pointer:fine){.top nav a:hover{background:var(--well);color:var(--label)}}
+@media (max-width:980px){.top nav{display:none}}
+
+/* type scale with size-specific tracking */
+.display{font-size:clamp(38px,6vw,64px);line-height:1.02;letter-spacing:-.035em;font-weight:650;margin:0}
+.h2{font-size:clamp(28px,3.4vw,38px);line-height:1.08;letter-spacing:-.028em;font-weight:650;margin:0 0 10px}
+.h3{font-size:17px;line-height:1.25;letter-spacing:-.015em;font-weight:600;margin:0 0 6px}
+.eyebrow{font-size:11.5px;letter-spacing:.02em;font-weight:600;color:var(--accent-text);margin:0 0 12px}
+.lead{font-size:17px;line-height:1.5;letter-spacing:-.01em;color:var(--label2);margin:0}
+.muted{color:var(--label2)}
+.small{font-size:12.5px;color:var(--label2)}
+
+section{padding-top:112px}
+.sec-head{margin-bottom:36px;max-width:720px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:860px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2{grid-template-columns:1fr}}
+@media (max-width:540px){.g3,.g4{grid-template-columns:1fr}}
+.card{background:var(--surface);border-radius:16px;box-shadow:var(--e2);padding:22px}
+.card.flat{box-shadow:var(--e1)}
+
+/* ============ HERO ============ */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:48px;align-items:center;padding:64px 0 0}
+@media (max-width:900px){.hero{grid-template-columns:1fr;gap:32px}}
+.hero .lead{margin-top:20px}
+.hero .meta{margin-top:28px;display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--label3)}
+
+/* ============ STAGE + POPOVER ============ */
+.stage{position:relative;border-radius:22px;background:var(--stage);padding:10px 12px 22px;box-shadow:var(--e2);overflow:hidden;min-height:520px;display:flex;flex-direction:column;align-items:flex-end}
+.menubar{align-self:stretch;height:28px;border-radius:9px;background:var(--menubar);backdrop-filter:blur(24px) saturate(1.8);-webkit-backdrop-filter:blur(24px) saturate(1.8);display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;color:var(--menubar-fg);font-size:13px;font-weight:500;box-shadow:var(--edge)}
+.menubar .ghost{width:15px;height:11px;border-radius:3px;background:currentColor;opacity:.22}
+.mb-item{display:flex;align-items:center;justify-content:center;height:22px;padding:0 6px;border-radius:6px;border:0;background:transparent;color:inherit;cursor:pointer;transition:background-color .12s ease}
+.mb-item[aria-expanded="true"]{background:rgba(127,127,127,.22)}
+.pop-anchor{position:relative;width:320px;max-width:100%;margin-top:6px;margin-right:52px}
+@media (max-width:420px){.pop-anchor{margin-right:0}}
+.popover{width:100%;border-radius:16px;background:var(--pop);backdrop-filter:blur(40px) saturate(1.9);-webkit-backdrop-filter:blur(40px) saturate(1.9);box-shadow:var(--e3),var(--edge);padding:8px;color:var(--label);transform-origin:calc(100% - 22px) -8px;
+  transition:opacity .16s var(--ease-out),transform .16s var(--ease-out),filter .16s var(--ease-out)}
+.popover.closed{opacity:0;transform:scale(.96) translateY(-4px);filter:blur(4px);pointer-events:none;transition-duration:.11s}
+.ph{display:flex;align-items:center;gap:11px;padding:8px 8px 12px}
+.gw{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;background:var(--well2);color:var(--label2);transition:background-color .25s ease,color .25s ease}
+.gw.on{background:var(--accent);color:#fff}
+.ph .tx{flex:1;min-width:0}
+.t1{font-size:13.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t2{font-size:11.5px;color:var(--label2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts{display:grid;grid-template-columns:1fr auto;gap:6px;padding:0 4px 8px}
+.vol{margin:0 8px 8px;padding:9px 10px;border-radius:10px;background:var(--pop-row);display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--label2)}
+.vol .track{flex:1;height:4px;border-radius:2px;background:var(--well2);overflow:hidden}
+.vol .fill{height:100%;width:100%;background:var(--label);opacity:.55;transform-origin:left;border-radius:2px}
+.vol .n{width:34px;text-align:right}
+.sep{height:.5px;background:var(--hair);margin:4px 8px}
+.sl{font-size:11px;font-weight:600;color:var(--label2);padding:8px 10px 4px;display:flex;justify-content:space-between}
+.row{position:relative;display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:9px;font-size:13px;transition:background-color .2s ease}
+@media (hover:hover) and (pointer:fine){.popover .row:hover{background:var(--pop-row)}}
+.row .nm{flex:1;display:flex;align-items:center;gap:6px}
+.row .now{font-size:10.5px;font-weight:600;color:var(--accent-text);opacity:0;transform:translateX(-3px);transition:opacity .2s var(--ease-out),transform .2s var(--ease-out)}
+.row.active{background:var(--accent-tint)}
+.row.active .now{opacity:1;transform:none}
+.foot{display:flex;justify-content:space-between;padding:8px 10px 4px;font-size:12.5px}
+.foot span{color:var(--label2)}
+.sim{position:absolute;left:14px;right:14px;bottom:14px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.chip{height:28px;padding:0 12px;border-radius:999px;border:0;font:500 12px/1 inherit;font-family:inherit;color:var(--label);background:var(--pop);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:var(--e1),var(--edge);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:transform .16s var(--ease-out),background-color .2s ease}
+.chip:active{transform:scale(.96)}
+.chip[aria-pressed="true"]{background:var(--accent);color:#fff}
+.ring{width:14px;height:14px;flex:none}
+.ring circle{fill:none;stroke-width:2}
+.pending{display:inline-flex;align-items:center;gap:6px;opacity:0;transition:opacity .15s ease;font-size:11px;color:var(--label2)}
+.pending.show{opacity:1}
+
+/* ============ CONTROLS ============ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:30px;padding:0 13px;border-radius:9px;border:0;background:var(--control);color:var(--label);font:500 13px/1 inherit;font-family:inherit;letter-spacing:-.005em;cursor:pointer;box-shadow:var(--e1),var(--edge);white-space:nowrap;transition:transform .16s var(--ease-out),background-color .2s ease,opacity .2s ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);color:#fff;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(40,30,120,.25),inset 0 .5px 0 rgba(255,255,255,.25)}
+.btn.primary:active{background:var(--accent-pressed)}
+.btn.ghost{background:transparent;box-shadow:none;color:var(--accent-text);padding:0 6px}
+.btn.lg{height:36px;padding:0 18px;font-size:13.5px;border-radius:10px}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn .kbd{font-size:11.5px;opacity:.7;font-weight:400;letter-spacing:.02em}
+.btn-label{display:inline-flex;gap:7px}
+.switch{position:relative;width:40px;height:24px;border-radius:12px;border:0;background:var(--well2);cursor:pointer;flex:none;padding:0;transition:background-color .25s ease;box-shadow:inset 0 0 0 .5px var(--hair)}
+.switch i{position:absolute;top:2px;left:2px;height:20px;width:20px;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25),0 0 0 .5px rgba(0,0,0,.04);transition:transform .32s cubic-bezier(.3,1.3,.5,1),width .16s var(--ease-out)}
+.switch[aria-checked="true"]{background:var(--accent)}
+.switch[aria-checked="true"] i{transform:translateX(16px)}
+.switch:active i{width:24px}
+.switch[aria-checked="true"]:active i{transform:translateX(12px)}
+.switch.sm{width:32px;height:20px}.switch.sm i{width:16px;height:16px;border-radius:8px}
+.switch.sm[aria-checked="true"] i{transform:translateX(12px)}.switch.sm:active i{width:19px}.switch.sm[aria-checked="true"]:active i{transform:translateX(9px)}
+.badge{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:999px;font-size:10.5px;font-weight:600;letter-spacing:.01em;background:var(--well2);color:var(--label2);white-space:nowrap;transition:background-color .2s ease,color .2s ease}
+.badge svg{width:10px;height:10px}
+.badge.accent{background:var(--accent-tint);color:var(--accent-text)}
+.badge.pro{background:linear-gradient(135deg,var(--accent-tint),transparent);color:var(--accent-text);box-shadow:inset 0 0 0 .5px var(--accent-tint)}
+.badge.warn{background:rgba(255,159,10,.14);color:var(--orange)}
+.seg{position:relative;display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--well2);border-radius:9px;padding:2px}
+.seg button{position:relative;z-index:1;border:0;background:transparent;color:var(--label2);font:500 12px/1 inherit;font-family:inherit;height:24px;padding:0 12px;border-radius:7px;cursor:pointer;transition:color .2s ease;white-space:nowrap}
+.seg button[aria-pressed="true"]{color:var(--label)}
+.seg .thumb{position:absolute;top:2px;bottom:2px;left:2px;border-radius:7px;background:var(--control);box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.05);transition:transform .26s var(--ease-out),width .26s var(--ease-out)}
+.popup{display:inline-flex;align-items:center;gap:8px;height:26px;padding:0 6px 0 11px;border-radius:8px;background:var(--control);box-shadow:var(--e1),var(--edge);font-size:12.5px;white-space:nowrap}
+.popup .chev{color:var(--label3);font-size:10px}
+.slider{display:grid;grid-template-columns:110px 1fr 48px;align-items:center;gap:12px;font-size:13px;padding:8px 0}
+.slider input{width:100%;accent-color:var(--accent)}
+.slider .val{text-align:right;color:var(--label2);font-variant-numeric:tabular-nums}
+.kchip{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 5px 0 11px;border-radius:8px;background:var(--control);box-shadow:var(--e1),var(--edge);font-size:13px;letter-spacing:.04em}
+.kchip .x{width:16px;height:16px;border-radius:50%;background:var(--well2);color:var(--label2);display:inline-flex;align-items:center;justify-content:center;font-size:9px;letter-spacing:0}
+.appi{width:20px;height:20px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex:none;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12),inset 0 .5px 0 rgba(255,255,255,.25)}
+.appi.lg{width:30px;height:30px;border-radius:7.5px;font-size:13px}
+.z{background:linear-gradient(#4A8CF7,#2D6BE0)}.x{background:linear-gradient(#3A3A3F,#1C1C1E)}.g{background:linear-gradient(#D25A3E,#A63E27)}.f{background:linear-gradient(#9B66F0,#6E3BD6)}
+
+/* ============ DOC BITS ============ */
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th,table.t td{text-align:left;padding:11px 14px;vertical-align:top}
+table.t th{font-size:11.5px;color:var(--label2);font-weight:600}
+table.t tr+tr td{box-shadow:inset 0 .5px 0 var(--hair)}
+table.t td:first-child{color:var(--label2)}
+.tablecard{background:var(--surface);border-radius:16px;box-shadow:var(--e2);overflow:hidden}
+.scroll{overflow-x:auto}
+.ba td:nth-child(1){color:var(--label3);text-decoration:line-through;text-decoration-color:var(--label3);text-decoration-thickness:1px}
+.ba td:nth-child(2){color:var(--label);font-weight:500}
+.ba td:nth-child(3){color:var(--label2)}
+.ba td small{display:block;color:var(--accent-text);font-weight:600;font-size:10.5px;text-decoration:none}
+.num{font-size:13px;font-weight:600;color:var(--accent-text);margin-bottom:14px;display:block;font-variant-numeric:tabular-nums}
+.sw{height:84px;border-radius:12px;margin-bottom:12px;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;box-shadow:var(--e1)}
+.sw span{display:flex;align-items:flex-end;padding:9px 10px;font-size:11px;font-weight:600}
+.tok{font-size:12px;color:var(--label2)}
+.type-row{display:grid;grid-template-columns:170px 1fr;gap:20px;align-items:baseline;padding:16px 0}
+.type-row+.type-row{box-shadow:inset 0 .5px 0 var(--hair)}
+@media (max-width:560px){.type-row{grid-template-columns:1fr;gap:4px}}
+.elev{height:110px;border-radius:14px;background:var(--surface);display:flex;align-items:flex-end;padding:12px;font-size:12px;font-weight:600}
+.elev-stage{background:var(--page);border-radius:16px;padding:22px;box-shadow:inset 0 0 0 .5px var(--hair)}
+.curve{width:100%;height:auto;display:block}
+.curve .ax{stroke:var(--hair);stroke-width:1}
+.curve .ln{fill:none;stroke:var(--accent-text);stroke-width:2.2;stroke-linecap:round}
+.curve text{fill:var(--label2);font-size:10px;font-family:inherit}
+.demo-pad{height:120px;border-radius:12px;background:var(--well);display:flex;align-items:center;justify-content:center;margin-bottom:14px;gap:12px}
+.icon-states{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.icon-states{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ist{background:var(--surface);border-radius:16px;box-shadow:var(--e2);padding:22px 12px 16px;text-align:center}
+.ist .big{height:64px;display:flex;align-items:center;justify-content:center}
+.ist .sm{height:28px;display:flex;align-items:center;justify-content:center;margin:8px auto 12px;width:64px;border-radius:7px;background:var(--well)}
+.ist b{font-size:13px;letter-spacing:-.01em;display:block}
+.ist span{font-size:11.5px;color:var(--label2)}
+.win{background:var(--surface);border-radius:14px;box-shadow:var(--e3);overflow:hidden;max-width:100%}
+.win .bar{height:44px;display:flex;align-items:center;padding:0 16px;position:relative}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)}
+.lights i:nth-child(1){background:#FF5F57}.lights i:nth-child(2){background:#FEBC2E}.lights i:nth-child(3){background:#28C840}
+.win .title{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;pointer-events:none}
+.tabs{display:flex;justify-content:center;gap:2px;padding:0 0 12px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 14px 6px;border-radius:9px;font-size:11px;color:var(--label2);cursor:pointer;border:0;background:none;font-family:inherit;transition:background-color .15s ease,color .15s ease}
+.tab svg{width:20px;height:20px}
+.tab[aria-selected="true"]{background:var(--well2);color:var(--accent-text)}
+.win .body{padding:4px 24px 24px}
+.group{background:var(--well);border-radius:12px}
+.group .r{display:flex;align-items:center;gap:12px;padding:12px 14px;flex-wrap:wrap}
+.group .r+.r{box-shadow:inset 0 .5px 0 var(--hair)}
+.group .r .nm{flex:1;min-width:110px;font-size:13px}
+.group .r .hint{font-size:11.5px;color:var(--label2)}
+.steps{display:flex;gap:6px;justify-content:center;margin:6px 0 22px}
+.steps i{width:22px;height:4px;border-radius:2px;background:var(--well2);display:block}
+.steps i.on{background:var(--accent)}
+.dd{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:600px){.dd{grid-template-columns:1fr}}
+.dd ul{margin:10px 0 0;padding-left:18px;color:var(--label2)}
+.dd li{margin:5px 0}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.decision{border-radius:16px;padding:24px 26px;background:var(--accent-tint)}
+.decision ol{margin:10px 0 0;padding-left:20px}.decision li{margin:6px 0}
+.theme-seg .seg button{padding:0 10px}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms!important}
+  .popover,.popover.closed{transform:none!important;filter:none!important;transition:opacity .15s ease!important}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="mic" viewBox="0 0 12 12"><rect x="4" y="1" width="4" height="6.5" rx="2" fill="currentColor"/><path d="M2.5 6a3.5 3.5 0 0 0 7 0M6 9.5V11" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="front" viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="8" rx="1.8" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M1.5 4.4h9" stroke="currentColor" stroke-width="1.3"/></symbol>
+  <symbol id="running" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.8" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M5 3.9v4.2L8.2 6Z" fill="currentColor"/></symbol>
+  <symbol id="lock" viewBox="0 0 12 12"><rect x="2.5" y="5.2" width="7" height="5.3" rx="1.4" fill="currentColor"/><path d="M4 5.2V4a2 2 0 0 1 4 0v1.2" stroke="currentColor" stroke-width="1.3" fill="none"/></symbol>
+  <linearGradient id="aiBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7B76F2"/><stop offset=".55" stop-color="#4C47C4"/><stop offset="1" stop-color="#2B2782"/></linearGradient>
+  <linearGradient id="aiBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E4E2FF"/></linearGradient>
+  <radialGradient id="aiGlow" cx=".3" cy=".1" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></radialGradient>
+</defs></svg>
+
+<div class="wrap">
+<header class="top"><div class="in">
+  <div class="brand"><span data-glyph="brand" style="color:var(--accent-text)"></span>Mauna <small>Design System 0.2</small></div>
+  <nav><a href="#upgrade">What changed</a><a href="#principles">Principles</a><a href="#color">Colour</a><a href="#type">Type</a><a href="#depth">Depth</a><a href="#motion">Motion</a><a href="#icon">Icon</a><a href="#components">Components</a><a href="#screens">Screens</a></nav>
+  <div class="theme-seg"><div class="seg" data-seg id="themeSeg"><button aria-pressed="true" data-v="auto">Auto</button><button aria-pressed="false" data-v="light">Light</button><button aria-pressed="false" data-v="dark">Dark</button></div></div>
+</div></header>
+
+<!-- HERO -->
+<div class="hero">
+  <div>
+    <p class="eyebrow">Mauna · मौन · silence</p>
+    <h1 class="display">Your music knows when to step aside.</h1>
+    <p class="lead">The design system for a menu bar app that should feel like it shipped with macOS. Calm by default, specific about why, and quick to answer every click. The popover demo is live: join a call, switch apps, or press Q to stand in for the shortcut.</p>
+    <div class="meta"><span>Draft 0.2 · Nov 22, 2026</span><span>Built on Emil Kowalski's design engineering rules + Apple's fluid interface principles</span></div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="menubar"><span class="ghost"></span><span class="ghost"></span><button class="mb-item" id="mbBtn" aria-expanded="true" aria-label="Mauna menu"><span id="mbGlyph"></span></button><span class="tnum" id="clock">Sun 3:41 PM</span></div>
+    <div class="pop-anchor">
+      <div class="popover" id="pop" role="group" aria-label="Mauna popover (live demo)">
+        <div class="ph">
+          <div class="gw" id="gw"><span id="popGlyph"></span></div>
+          <div class="tx"><div class="t1" id="t1">Playing on Spotify</div><div class="t2" id="t2">Watching 3 apps</div></div>
+          <button class="switch" role="switch" aria-checked="true" id="master" aria-label="Mauna on"><i></i></button>
+        </div>
+        <div class="acts">
+          <button class="btn primary" id="quietBtn"><span class="btn-label" id="quietLbl">Quiet now <span class="kbd">⌃⌥Space</span></span></button>
+          <button class="btn" id="snoozeBtn">Snooze</button>
+        </div>
+        <div class="vol"><span>Spotify</span><div class="track"><div class="fill" id="volFill"></div></div><span class="n tnum" id="volN">70%</span></div>
+        <div class="sep"></div>
+        <div class="sl"><span>Rules</span><span class="pending" id="pending"><svg class="ring" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="var(--well2)"/><circle id="ringArc" cx="8" cy="8" r="6" stroke="var(--accent-text)" stroke-dasharray="37.7" stroke-dashoffset="37.7" transform="rotate(-90 8 8)" stroke-linecap="round"/></svg><span id="pendingTx">Waiting 1.5 s</span></span></div>
+        <div class="row" id="rowZoom"><span class="appi z">Z</span><span class="nm">Zoom<span class="now">now</span></span><span class="badge" id="bZoom"><svg><use href="#mic"/></svg>Mic</span></div>
+        <div class="row" id="rowXcode"><span class="appi x">X</span><span class="nm">Xcode<span class="now">now</span></span><span class="badge" id="bXcode"><svg><use href="#front"/></svg>Front · Duck</span></div>
+        <div class="row"><span class="appi g">G</span><span class="nm">Game<span class="now">now</span></span><span class="badge"><svg><use href="#running"/></svg>Running</span></div>
+        <div class="sep"></div>
+        <div class="foot"><a style="color:var(--label);text-decoration:none" href="#screens">Settings…</a><span>Quit</span></div>
+      </div>
+    </div>
+    <div class="sim" aria-label="Simulate events">
+      <button class="chip" data-sim="zoom" aria-pressed="false">Join Zoom call</button>
+      <button class="chip" data-sim="xcode" aria-pressed="false">Switch to Xcode</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHAT CHANGED -->
+<section id="upgrade">
+  <div class="sec-head"><p class="eyebrow">From 0.1 to 0.2</p><h2 class="h2">What makes it feel premium</h2><p class="lead">Premium isn't more decoration. It's a lot of small, unseen details that are all right together. Each change below comes from a specific rule.</p></div>
+  <div class="tablecard scroll"><table class="t ba">
+    <tr><th>Before</th><th>After</th><th>Why</th></tr>
+    <tr><td>1px solid borders on every card and row</td><td>0.5px translucent ring plus a soft layered shadow</td><td>Solid borders read as wireframe. A ring and shadow read as a real surface. <small>Emil · agents with taste</small></td></tr>
+    <tr><td>One letter-spacing for every size</td><td>Tracking per size: −3.5% on display, −1.5% on 17pt, 0 on body, +1% on captions</td><td>Large type looks loose and small type looks cramped without it. <small>Apple · UI typography</small></td></tr>
+    <tr><td>Serif display headings</td><td>SF Pro Display, heavier weight, tight leading</td><td>Use the system font unless there's a reason. Build hierarchy with weight, not a second typeface. <small>Apple · typography</small></td></tr>
+    <tr><td>Flat grey popover</td><td>Translucent material with a bright top edge and a deeper shadow</td><td>Material weight shows hierarchy. The edge highlight is light catching the glass. <small>Apple · materials</small></td></tr>
+    <tr><td>Hard divider under the sticky header</td><td>Fade where content meets the floating chrome</td><td>Use scroll-edge effects, not 1px lines. <small>Apple · materials</small></td></tr>
+    <tr><td>Buttons with no press state</td><td><code>scale(0.97)</code> on press, 160 ms ease-out</td><td>The interface should feel like it's listening. <small>Emil · buttons</small></td></tr>
+    <tr><td>Popover pops in from its centre</td><td>Grows from the menu bar icon: scale 0.96, a 4px blur, 160 ms</td><td>Popovers are origin-aware, and nothing appears from nothing. <small>Emil · popovers</small></td></tr>
+    <tr><td>Status text swaps instantly</td><td>Crossfade with a 2px blur bridge</td><td>Blur blends two states into one change. <small>Emil · blur</small></td></tr>
+    <tr><td>Glyph states as separate images</td><td>Bars morph on a critically damped spring from wherever they are now</td><td>Springs can be interrupted. A new event changes the target with no jump. <small>Apple · interruptibility</small></td></tr>
+    <tr><td>Same motion for the shortcut and for rules</td><td>The shortcut changes state instantly. Only rule changes animate.</td><td>Never animate an action people trigger from the keyboard many times a day. <small>Emil · frequency</small></td></tr>
+    <tr><td>Pastel background, saturated badges</td><td>Dusk wallpaper, tinted neutrals, badges as quiet fills</td><td>Restraint reads as confidence. Accent only where Mauna is acting.</td></tr>
+    <tr><td>Static mockups</td><td>Live prototype with real timing: 1.5 s wait, 1.2 s fade-out, 1.8 s fade-in</td><td>An interactive demo is worth a million static designs. <small>Apple · process</small></td></tr>
+  </table></div>
+</section>
+
+<!-- PRINCIPLES -->
+<section id="principles">
+  <div class="sec-head"><p class="eyebrow">Principles</p><h2 class="h2">The feeling is calm confidence.</h2><p class="lead">Apple's advice is to pick one emotion and back it up in every decision. Ours is calm. When two principles conflict, the one higher up wins.</p></div>
+  <div class="grid g4">
+    <div class="card"><span class="num">01</span><h3 class="h3">The glyph says what you hear. The text says why.</h3><p class="small">Full, low or flat bars show the sound. "Paused for Zoom" shows the cause. Mauna never goes quiet without a reason on screen.</p></div>
+    <div class="card"><span class="num">02</span><h3 class="h3">Part of macOS</h3><p class="small">System font, system materials, native controls tinted with one accent. When something is right, nobody notices it.</p></div>
+    <div class="card"><span class="num">03</span><h3 class="h3">Motion only when it means something</h3><p class="small">Every animation has a reason: state, feedback or where something came from. Things people use often stay instant, and nothing loops.</p></div>
+    <div class="card"><span class="num">04</span><h3 class="h3">Handle edge cases quietly</h3><p class="small">Debounce, override, short sounds, two rules at once. The best edge-case handling is the one nobody ever sees.</p></div>
+  </div>
+</section>
+
+<!-- COLOUR -->
+<section id="color">
+  <div class="sec-head"><p class="eyebrow">Colour</p><h2 class="h2">One accent, used rarely.</h2><p class="lead">Dusk indigo means one thing: Mauna is acting right now. Everything else is a slightly tinted neutral from macOS semantic colours, so light, dark and increased contrast all work without extra effort.</p></div>
+  <div class="grid g4">
+    <div><div class="sw"><span style="background:#4C47C4;color:#fff">Light</span><span style="background:#6762E8;color:#fff">Dark</span></div><b>accent.fill</b><div class="tok mono">#4C47C4 · #6762E8</div><div class="tok">Active glyph tile, primary button, switch.</div></div>
+    <div><div class="sw"><span style="background:#fff;color:#4540B8">Aa</span><span style="background:#151518;color:#A9A5FF">Aa</span></div><b>accent.text</b><div class="tok mono">#4540B8 · #A9A5FF</div><div class="tok">"now" label, active badge, links.</div></div>
+    <div><div class="sw"><span style="background:#EEEDF9;color:#4540B8">tint</span><span style="background:#24233A;color:#A9A5FF">tint</span></div><b>accent.tint</b><div class="tok mono">9% · 15% alpha</div><div class="tok">Active rule row.</div></div>
+    <div><div class="sw"><span style="background:#F5F5F7;color:#6E6E73">page</span><span style="background:#0A0A0C;color:#A1A1A6">page</span></div><b>neutrals</b><div class="tok mono">.primary · .secondary · .tertiary</div><div class="tok">Never hard-coded in Swift.</div></div>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card flat"><span class="dot" style="background:var(--orange)"></span><b>Warning · systemOrange</b><p class="small" style="margin:6px 0 0">Missing permission, YouTube Music setup not done.</p></div>
+    <div class="card flat"><span class="dot" style="background:var(--red)"></span><b>Error · systemRed</b><p class="small" style="margin:6px 0 0">Player unreachable or a script failed.</p></div>
+    <div class="card flat"><span class="dot" style="background:var(--label3)"></span><b>Never</b><p class="small" style="margin:6px 0 0">No green for "playing" or red for "paused". No colour-coded triggers. State lives in the glyph.</p></div>
+  </div>
+</section>
+
+<!-- TYPE -->
+<section id="type">
+  <div class="sec-head"><p class="eyebrow">Typography</p><h2 class="h2">SF Pro, with tracking for each size.</h2><p class="lead">In SwiftUI the system font already handles optical size and tracking, so we never add <code>.tracking()</code> to system text. We build hierarchy from weight and size together.</p></div>
+  <div class="card">
+    <div class="type-row"><div class="small">.title · 22 bold<br>Onboarding</div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">Add your first quiet app</div></div>
+    <div class="type-row"><div class="small">.title3 · 15 semibold<br>Settings sections</div><div style="font-size:15px;font-weight:600;letter-spacing:-.012em">Sound</div></div>
+    <div class="type-row"><div class="small">.headline · 13 semibold<br>Status line, rule name</div><div style="font-size:13.5px;font-weight:600;letter-spacing:-.01em">Paused for Zoom</div></div>
+    <div class="type-row"><div class="small">.body · 13<br>Default text</div><div style="font-size:13px">Music comes back from the same spot when you leave.</div></div>
+    <div class="type-row"><div class="small">.subheadline · 11<br>Sub-line</div><div style="font-size:11.5px;color:var(--label2)">Resumes when the call ends</div></div>
+    <div class="type-row"><div class="small">.caption medium · 10<br>Badges</div><div><span class="badge"><svg><use href="#mic"/></svg>Mic</span> <span class="badge pro">Pro</span></div></div>
+    <div class="type-row"><div class="small">.monospacedDigit()<br>Numbers that change</div><div class="tnum" style="font-size:13px">Back on at 4:11 PM · 70% · 1.2 s</div></div>
+  </div>
+</section>
+
+<!-- DEPTH -->
+<section id="depth">
+  <div class="sec-head"><p class="eyebrow">Depth</p><h2 class="h2">Rings and shadows, not borders.</h2><p class="lead">Three elevation levels. Bigger surfaces sit higher and cast deeper shadows. We never stack one translucent layer on another, because text stops being readable.</p></div>
+  <div class="elev-stage"><div class="grid g3">
+    <div class="elev" style="box-shadow:var(--e1)">e1 · rows, chips, controls</div>
+    <div class="elev" style="box-shadow:var(--e2)">e2 · cards, settings groups</div>
+    <div class="elev" style="box-shadow:var(--e3)">e3 · popover, windows</div>
+  </div></div>
+  <p class="small" style="margin-top:14px">In SwiftUI the popover and settings window get their material and shadow from the system. These levels only apply to our own surfaces, like the onboarding cards and the YouTube Music setup sheet.</p>
+</section>
+
+<!-- MOTION -->
+<section id="motion">
+  <div class="sec-head"><p class="eyebrow">Motion</p><h2 class="h2">Decide whether it should animate at all.</h2><p class="lead">For every Mauna moment, we ask how often people see it and why it moves. The real animation in Mauna is the audio fade. The interface just keeps up with it.</p></div>
+  <div class="tablecard scroll"><table class="t">
+    <tr><th>Moment</th><th>How often</th><th>Decision</th><th>Spec</th></tr>
+    <tr><td>Quiet shortcut ⌃⌥Space</td><td>Many times a day, keyboard</td><td><b>No UI animation.</b> The audio fade is the feedback.</td><td>Glyph swaps instantly</td></tr>
+    <tr><td>Opening the popover</td><td>Tens a day</td><td>Keep it tiny</td><td>The system animates it. In mocks: 160 ms ease-out from the icon, exit 110 ms</td></tr>
+    <tr><td>Rule pauses or resumes music</td><td>A few an hour, automatic</td><td>Animate: state indication</td><td>Glyph spring (damping 1.0, response 0.3), text crossfade 200 ms with 2px blur</td></tr>
+    <tr><td>Rule row becomes active</td><td>With the above</td><td>Animate: shows the cause</td><td>Tint fades in over 200 ms. "now" slides 3px with ease-out</td></tr>
+    <tr><td>Button press</td><td>Every click</td><td>Feedback</td><td>scale 0.97, 160 ms ease-out, on press, not on release</td></tr>
+    <tr><td>Switch, segmented control</td><td>Occasional</td><td>Native</td><td>SwiftUI default. The thumb stretches on press</td></tr>
+    <tr><td>Onboarding steps</td><td>Once</td><td>A little delight is fine</td><td>Forward and back slide along the same path, 300 ms, short stagger of 40 to 80 ms</td></tr>
+    <tr><td>Menu bar while playing</td><td>All day</td><td><b>Never.</b> No equaliser loop.</td><td>Still</td></tr>
+  </table></div>
+
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card">
+      <div class="demo-pad"><button class="btn primary lg">Press and hold</button></div>
+      <h3 class="h3">Press</h3><p class="small">Responds on press, not on release. <code>.buttonStyle</code> with <code>scaleEffect(0.97)</code> and <code>.snappy</code>.</p>
+    </div>
+    <div class="card">
+      <div class="demo-pad"><span id="demoGlyph" style="color:var(--label)"></span><button class="btn" id="demoMorph">Morph</button></div>
+      <h3 class="h3">Spring morph</h3><p class="small">Click quickly to interrupt it. It always picks up from where it is now. In SwiftUI: <code>.spring(response: 0.3, dampingFraction: 1)</code>.</p>
+    </div>
+    <div class="card">
+      <div class="demo-pad" style="flex-direction:column;gap:4px"><div class="t1" id="demoTx" style="font-size:15px">Playing on Spotify</div><button class="btn" id="demoSwap" style="margin-top:6px">Swap text</button></div>
+      <h3 class="h3">Blur crossfade</h3><p class="small">Text changes go through a 2px blur so you never see two words on top of each other. <code>.contentTransition(.opacity)</code> plus <code>.blur</code>.</p>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h3 class="h3">Audio fade</h3>
+      <svg class="curve" viewBox="0 0 400 150" aria-label="Volume fade curve">
+        <line class="ax" x1="20" y1="20" x2="20" y2="130"/><line class="ax" x1="20" y1="130" x2="390" y2="130"/>
+        <path class="ln" id="fadeCurve" d=""/>
+        <text x="24" y="16">70%</text><text x="24" y="126">0</text>
+        <text x="60" y="145">fade out 1.2 s</text><text x="250" y="145">fade in 1.8 s</text>
+      </svg>
+      <p class="small">Equal-power curves: fading out sounds even, and fading in starts gently. A slower return feels kinder. Each fade starts from the volume playing right now, so a fade that gets interrupted never jumps.</p>
+    </div>
+    <div class="card">
+      <h3 class="h3">Curves and springs</h3>
+      <table class="t" style="margin:-6px -14px 0">
+        <tr><th>Token</th><th>Value</th><th>Use</th></tr>
+        <tr><td>ease-out</td><td class="mono">(.23, 1, .32, 1)</td><td>Enter, press, popover</td></tr>
+        <tr><td>ease-in-out</td><td class="mono">(.77, 0, .175, 1)</td><td>On-screen moves</td></tr>
+        <tr><td>spring.default</td><td class="mono">response .3 · damping 1</td><td>Glyph, highlights</td></tr>
+        <tr><td>spring.flick</td><td class="mono">response .35 · damping .8</td><td>Only after momentum</td></tr>
+        <tr><td>Never</td><td class="mono">ease-in, scale(0), loops</td><td>Anywhere in the UI</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ICON -->
+<section id="icon">
+  <div class="sec-head"><p class="eyebrow">Icon · Concept B</p><h2 class="h2">The quiet wave.</h2><p class="lead">Five bars that settle as the music steps aside. We build it as a custom SF Symbol, so macOS tints it in the menu bar and SwiftUI can morph between states with <code>.contentTransition(.symbolEffect(.replace))</code>.</p></div>
+  <div class="icon-states" id="iconStates"></div>
+  <p class="small" style="margin-top:14px">The same glyph means the same sound. Low bars cover both "Quieted by you" and "Lowered for Xcode", and the status line says which. Off is shown at reduced opacity, the way macOS shows disabled menu bar items.</p>
+
+  <div class="grid g2" style="margin-top:28px;align-items:center">
+    <div class="card" style="display:flex;gap:28px;align-items:flex-end;justify-content:center;flex-wrap:wrap;padding:36px 22px">
+      <svg width="148" height="148" viewBox="0 0 128 128" aria-label="App icon concept">
+        <rect x="6" y="6" width="116" height="116" rx="27" fill="url(#aiBg)"/>
+        <rect x="6" y="6" width="116" height="116" rx="27" fill="url(#aiGlow)"/>
+        <rect x="6.5" y="6.5" width="115" height="115" rx="26.5" fill="none" stroke="#fff" stroke-opacity=".22"/>
+        <g fill="url(#aiBar)"><rect x="25" y="50" width="11" height="28" rx="5.5"/><rect x="41.5" y="34" width="11" height="60" rx="5.5"/><rect x="58" y="44" width="11" height="40" rx="5.5" opacity=".92"/><rect x="74.5" y="56" width="11" height="16" rx="5.5" opacity=".78"/><rect x="91" y="58.5" width="11" height="11" rx="5.5" opacity=".6"/></g>
+      </svg>
+      <svg width="64" height="64" viewBox="0 0 128 128"><rect x="6" y="6" width="116" height="116" rx="27" fill="url(#aiBg)"/><rect x="6" y="6" width="116" height="116" rx="27" fill="url(#aiGlow)"/><g fill="#fff"><rect x="25" y="50" width="11" height="28" rx="5.5"/><rect x="41.5" y="34" width="11" height="60" rx="5.5"/><rect x="58" y="44" width="11" height="40" rx="5.5"/><rect x="74.5" y="56" width="11" height="16" rx="5.5" opacity=".8"/><rect x="91" y="58.5" width="11" height="11" rx="5.5" opacity=".65"/></g></svg>
+      <svg width="32" height="32" viewBox="0 0 128 128"><rect x="6" y="6" width="116" height="116" rx="27" fill="url(#aiBg)"/><g fill="#fff"><rect x="25" y="50" width="11" height="28" rx="5.5"/><rect x="41.5" y="34" width="11" height="60" rx="5.5"/><rect x="58" y="44" width="11" height="40" rx="5.5"/><rect x="74.5" y="56" width="11" height="16" rx="5.5"/><rect x="91" y="58.5" width="11" height="11" rx="5.5"/></g></svg>
+    </div>
+    <div>
+      <h3 class="h3">App icon direction</h3>
+      <p class="small">Sound stepping aside from left to right, on a dusk gradient with light from the top left. This is a flat sketch. The final icon gets layered glass in Icon Composer: the bars on a front layer, the gradient behind, and the system's specular edge on top.</p>
+    </div>
+  </div>
+</section>
+
+<!-- COMPONENTS -->
+<section id="components">
+  <div class="sec-head"><p class="eyebrow">Components</p><h2 class="h2">Native controls, one tint.</h2><p class="lead">In code we use the system control and only set <code>.tint</code>. These mocks show how they should feel. Everything here is clickable.</p></div>
+  <div class="grid g3">
+    <div class="card"><h3 class="h3">Trigger badges</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0"><span class="badge"><svg><use href="#front"/></svg>Front</span><span class="badge"><svg><use href="#mic"/></svg>Mic</span><span class="badge"><svg><use href="#running"/></svg>Running</span><span class="badge accent"><svg><use href="#mic"/></svg>Mic</span></div><p class="small">Told apart by glyph and word. Accent only while that rule is firing. Symbols: <code>macwindow</code>, <code>mic.fill</code>, <code>play.circle</code>.</p></div>
+    <div class="card"><h3 class="h3">Buttons</h3><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn primary">Quiet now <span class="kbd">⌃⌥Space</span></button><button class="btn">Snooze</button><button class="btn ghost">Settings…</button></div><p class="small">At most one prominent button per view.</p></div>
+    <div class="card"><h3 class="h3">Status badges</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0"><span class="badge pro">Pro</span><span class="badge"><svg><use href="#lock"/></svg>Pro</span><span class="badge warn">Setup needed</span><span class="badge">Duck 20%</span></div><p class="small">The Pro badge gives information. It doesn't sell. Locked items stay visible but disabled.</p></div>
+    <div class="card"><h3 class="h3">Switch</h3><div style="display:flex;gap:14px;align-items:center;margin:14px 0"><button class="switch" role="switch" aria-checked="true" aria-label="demo"><i></i></button><button class="switch" role="switch" aria-checked="false" aria-label="demo"><i></i></button><button class="switch sm" role="switch" aria-checked="true" aria-label="demo"><i></i></button></div><p class="small">Press and hold: the thumb stretches toward where it's going.</p></div>
+    <div class="card"><h3 class="h3">Segmented</h3><div style="margin:12px 0;display:flex;flex-direction:column;gap:10px;align-items:flex-start"><div class="seg" data-seg><button aria-pressed="true">Toggle</button><button aria-pressed="false">Hold</button></div><div class="seg" data-seg><button aria-pressed="true">Pause</button><button aria-pressed="false">Duck</button></div></div><p class="small">One thumb slides between the options instead of each one changing colour.</p></div>
+    <div class="card"><h3 class="h3">Shortcut and pop-up</h3><div style="margin:12px 0;display:flex;gap:10px;flex-wrap:wrap"><span class="kchip">⌃⌥Space <span class="x">✕</span></span><span class="popup">Using mic or sound <span class="chev">⌃⌄</span></span></div><p class="small">The recorder comes from the KeyboardShortcuts package. When empty it reads "Record Shortcut".</p></div>
+    <div class="card" style="grid-column:span 2"><h3 class="h3">Sliders</h3>
+      <div class="slider"><span>Normal volume</span><input type="range" min="0" max="100" value="70" data-u="%"><span class="val">70%</span></div>
+      <div class="slider"><span>Fade time</span><input type="range" min="0" max="50" value="12" data-u=" s" data-s="10"><span class="val">1.2 s</span></div>
+      <div class="slider"><span>Duck level</span><input type="range" min="5" max="60" value="20" data-u="%"><span class="val">20%</span></div>
+    </div>
+    <div class="card"><h3 class="h3">Empty state</h3><div style="text-align:center;padding:14px 0 4px"><span data-glyph="paused" data-size="30" style="color:var(--label3)"></span><div style="font-weight:600;margin-top:8px;letter-spacing:-.01em">No quiet apps yet</div><div class="small" style="margin:4px auto 12px;max-width:26ch">Add an app, and Mauna will step your music aside when you use it.</div><button class="btn">Add App…</button></div></div>
+  </div>
+</section>
+
+<!-- SCREENS -->
+<section id="screens">
+  <div class="sec-head"><p class="eyebrow">Screens</p><h2 class="h2">Settings and onboarding.</h2><p class="lead">The settings window uses the standard macOS toolbar tabs. Onboarding is three short steps, each with one plain reason.</p></div>
+  <div class="grid g2" style="align-items:start">
+    <div class="win">
+      <div class="bar"><div class="lights"><i></i><i></i><i></i></div><div class="title" id="winTitle">Rules</div></div>
+      <div class="tabs" role="tablist" id="tabs">
+        <button class="tab" role="tab" aria-selected="false"><svg viewBox="0 0 18 18"><g fill="currentColor"><rect x="1.5" y="6" width="2" height="6" rx="1"/><rect x="5" y="3" width="2" height="12" rx="1"/><rect x="8.5" y="1" width="2" height="16" rx="1"/><rect x="12" y="4" width="2" height="10" rx="1"/><rect x="15.5" y="6.5" width="2" height="5" rx="1"/></g></svg>Players</button>
+        <button class="tab" role="tab" aria-selected="true"><svg viewBox="0 0 12 12"><use href="#front"/></svg>Rules</button>
+        <button class="tab" role="tab" aria-selected="false"><svg viewBox="0 0 18 18"><path d="M3 7h2.5L9 4v10l-3.5-3H3Z" fill="currentColor"/><path d="M12 6.5a3.5 3.5 0 0 1 0 5M14 4.5a6 6 0 0 1 0 9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>Sound</button>
+        <button class="tab" role="tab" aria-selected="false"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="2" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="6" r="4.7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 1.4"/></svg>General</button>
+      </div>
+      <div class="body">
+        <div class="group">
+          <div class="r"><span class="appi lg z">Z</span><span class="nm"><b>Zoom</b><br><span class="hint">Pauses during calls, even if you switch apps</span></span><span class="popup">Using mic or sound <span class="chev">⌃⌄</span></span><div class="seg" data-seg><button aria-pressed="true">Pause</button><button aria-pressed="false">Duck</button></div></div>
+          <div class="r"><span class="appi lg x">X</span><span class="nm"><b>Xcode</b><br><span class="hint">Lowers music while Xcode is in front</span></span><span class="popup">In front <span class="chev">⌃⌄</span></span><div class="seg" data-seg><button aria-pressed="false">Pause</button><button aria-pressed="true">Duck</button></div></div>
+          <div class="r"><span class="appi lg g">G</span><span class="nm"><b>Game</b><br><span class="hint">Pauses from launch until it quits</span></span><span class="popup">Running <span class="chev">⌃⌄</span></span><div class="seg" data-seg><button aria-pressed="true">Pause</button><button aria-pressed="false">Duck</button></div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px;flex-wrap:wrap"><button class="btn">Add App…</button><span class="small">Free: 2 rules, "In front" only · <span class="badge pro">Pro</span></span></div>
+      </div>
+    </div>
+
+    <div class="win">
+      <div class="bar"><div class="lights"><i></i><i></i><i></i></div></div>
+      <div class="body" style="padding:0 30px 28px">
+        <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+        <div style="font-size:22px;font-weight:700;letter-spacing:-.022em;text-align:center">Add your first quiet app</div>
+        <p class="small" style="text-align:center;margin:8px auto 22px;max-width:40ch">Pick an app that needs silence. We'll suggest when it should pause, and you can change it later.</p>
+        <div class="group">
+          <div class="r" style="background:var(--accent-tint);border-radius:12px 12px 0 0"><span class="appi lg z">Z</span><span class="nm"><b>Zoom</b><br><span class="hint">Suggested: Using mic or sound</span></span><span style="color:var(--accent-text);font-weight:700">✓</span></div>
+          <div class="r"><span class="appi lg f">F</span><span class="nm"><b>Figma</b><br><span class="hint">Suggested: In front</span></span></div>
+          <div class="r"><span class="appi lg x">X</span><span class="nm"><b>Xcode</b><br><span class="hint">Suggested: In front</span></span></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:22px"><button class="btn lg">Back</button><button class="btn primary lg">Continue</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VOICE -->
+<section id="voice">
+  <div class="sec-head"><p class="eyebrow">Voice</p><h2 class="h2">Short, plain, specific.</h2><p class="lead">Name the app, then the next step. Never blame the user.</p></div>
+  <div class="dd">
+    <div class="card"><b><span class="dot" style="background:var(--green)"></span>Say</b><ul><li>Paused for Zoom · Resumes when the call ends</li><li>Quieted by you · Press ⌃⌥Space to bring it back</li><li>Still paused for Zoom</li><li>So Mauna can pause and play Spotify.</li><li>Can't reach Chrome. Allow JavaScript from Apple Events.</li></ul></div>
+    <div class="card"><b><span class="dot" style="background:var(--red)"></span>Don't say</b><ul><li>Auto-pause engaged!</li><li>Mauna needs access to continue</li><li>Error: AppleEvent −1743</li><li>Exclamation marks, emoji, "Oops"</li><li>Ducked (in status text). Use "Lowered".</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <div class="decision"><b>Still open</b>
+    <ol>
+      <li>Popover: keep the on/off switch in the header, or move it to the footer so "Quiet now" is the main control?</li>
+      <li>Should the popover show the live volume row? It shows the fade happening, but it's one more row.</li>
+      <li>Minimum macOS version: this draft assumes macOS 14.</li>
+    </ol>
+  </div>
+</section>
+</div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- theme ---------- */
+  const root=document.documentElement;
+  function setTheme(v){ if(v==='auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme',v); try{localStorage.setItem('mauna-theme',v)}catch(e){} }
+  let saved='auto'; try{saved=localStorage.getItem('mauna-theme')||'auto'}catch(e){}
+  setTheme(saved);
+  $$('#themeSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===saved));
+  $('#themeSeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(b) setTheme(b.dataset.v);});
+
+  /* ---------- segmented with sliding thumb ---------- */
+  $$('[data-seg]').forEach(seg=>{
+    const th=document.createElement('span'); th.className='thumb'; seg.prepend(th);
+    const place=(instant)=>{const b=seg.querySelector('button[aria-pressed="true"]'); if(!b) return; if(instant) th.style.transition='none'; th.style.width=b.offsetWidth+'px'; th.style.transform=`translateX(${b.offsetLeft-2}px)`; if(instant){th.offsetWidth; th.style.transition='';}};
+    seg.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); place();});
+    requestAnimationFrame(()=>place(true)); addEventListener('resize',()=>place(true));
+  });
+  $$('.switch').forEach(s=>{ if(s.id!=='master') s.addEventListener('click',()=>s.setAttribute('aria-checked',s.getAttribute('aria-checked')!=='true'));});
+  $$('.slider input').forEach(r=>{const v=r.parentElement.querySelector('.val'),f=()=>{const s=+(r.dataset.s||1); v.textContent=(s>1?(r.value/s).toFixed(1):r.value)+r.dataset.u}; r.addEventListener('input',f); f();});
+  $('#tabs').addEventListener('click',e=>{const b=e.target.closest('.tab'); if(!b) return; $$('#tabs .tab').forEach(x=>x.setAttribute('aria-selected',x===b)); $('#winTitle').textContent=b.textContent.trim();});
+
+  /* ---------- quiet wave glyph with spring-driven bars ---------- */
+  const X=[1.5,5,8.5,12,15.5];
+  const SHAPES={playing:[6,12,16,10,5],ducked:[3,5,7,4,3],paused:[2,2,2,2,2],off:[6,12,16,10,5],brand:[6,12,8,3,2]};
+  const glyphs=[];
+  function makeGlyph(host,shape,size){
+    const ns='http://www.w3.org/2000/svg', svg=document.createElementNS(ns,'svg');
+    svg.setAttribute('viewBox','0 0 18 18'); svg.setAttribute('width',size); svg.setAttribute('height',size); svg.style.display='block';
+    const g=document.createElementNS(ns,'g'); g.setAttribute('fill','currentColor'); svg.appendChild(g);
+    const bars=X.map(x=>{const r=document.createElementNS(ns,'rect'); r.setAttribute('x',x); r.setAttribute('width',2); r.setAttribute('rx',1); g.appendChild(r); return r;});
+    const st={svg,bars,h:SHAPES[shape].slice(),v:[0,0,0,0,0],t:SHAPES[shape].slice(),dim:shape==='off'};
+    draw(st); host.innerHTML=''; host.appendChild(svg); glyphs.push(st); return st;
+  }
+  function draw(st){st.bars.forEach((r,i)=>{const h=Math.max(2,st.h[i]); r.setAttribute('y',9-h/2); r.setAttribute('height',h);}); st.svg.style.opacity=st.dim?.35:1;}
+  function setShape(st,shape,instant){
+    st.t=SHAPES[shape].slice(); st.dim=shape==='off';
+    if(instant||reduce){st.h=st.t.slice(); st.v=[0,0,0,0,0]; draw(st); return;}
+    st.svg.style.transition='opacity .25s ease'; kick();
+  }
+  // critically damped spring: response 0.3s, damping 1.0 — starts from current value + velocity (interruptible)
+  let running=false, last=0;
+  function kick(){ if(!running){running=true; last=performance.now(); requestAnimationFrame(step);} }
+  function step(now){
+    const dt=Math.min(.032,(now-last)/1000); last=now; const w=2*Math.PI/0.3; let moving=false;
+    glyphs.forEach(st=>{ for(let i=0;i<5;i++){ const a=-w*w*(st.h[i]-st.t[i])-2*w*st.v[i]; st.v[i]+=a*dt; st.h[i]+=st.v[i]*dt; if(Math.abs(st.h[i]-st.t[i])>.01||Math.abs(st.v[i])>.01) moving=true; else {st.h[i]=st.t[i]; st.v[i]=0;} } draw(st); });
+    if(moving) requestAnimationFrame(step); else running=false;
+  }
+  $$('[data-glyph]').forEach(el=>makeGlyph(el,el.dataset.glyph,+(el.dataset.size||22)));
+
+  /* icon states */
+  const states=[['playing','Watching','Full bars: music playing'],['paused','Paused for an app','Flat: silent'],['ducked','Quieted or lowered','Low bars: turned down'],['off','Off or snoozed','Dimmed: not watching']];
+  $('#iconStates').innerHTML=states.map(([k,l,s])=>`<div class="ist"><div class="big" data-k="${k}" data-b="1"></div><div class="sm" data-k="${k}"></div><b>${l}</b><span>${s}</span></div>`).join('');
+  $$('#iconStates [data-k]').forEach(el=>{el.style.color='var(--label)'; makeGlyph(el,el.dataset.k,el.dataset.b?48:18);});
+
+  /* morph demo */
+  const demo=makeGlyph($('#demoGlyph'),'playing',40); const seq=['paused','ducked','playing']; let di=0;
+  $('#demoMorph').addEventListener('click',()=>{setShape(demo,seq[di%3]); di++;});
+
+  /* blur crossfade */
+  function swapText(el,txt){
+    if(el.textContent===txt) return;
+    if(reduce){el.textContent=txt; return;}
+    el.animate([{opacity:1,filter:'blur(0)'},{opacity:0,filter:'blur(2px)'}],{duration:90,easing:'ease-in-out'}).onfinish=()=>{
+      el.textContent=txt; el.animate([{opacity:0,filter:'blur(2px)'},{opacity:1,filter:'blur(0)'}],{duration:180,easing:'cubic-bezier(.23,1,.32,1)'});
+    };
+  }
+  const dtx=['Playing on Spotify','Paused for Zoom','Quieted by you']; let dj=0;
+  $('#demoSwap').addEventListener('click',()=>{dj=(dj+1)%3; swapText($('#demoTx'),dtx[dj]);});
+
+  /* fade curve */
+  (function(){let d='M20 34'; const top=34,bot=130,h=bot-top;
+    for(let i=0;i<=40;i++){const t=i/40; const y=bot-h*Math.cos(t*Math.PI/2); d+=` L${20+t*140} ${y}`;}
+    d+=' L 200 130';
+    for(let i=0;i<=60;i++){const t=i/60; const y=bot-h*Math.sin(t*Math.PI/2); d+=` L${200+t*190} ${y}`;}
+    $('#fadeCurve').setAttribute('d',d);})();
+
+  /* ---------- LIVE POPOVER SIM ---------- */
+  const NORMAL=70, DUCK=.2, DEBOUNCE=1500, FADE_OUT=1200, FADE_IN=1800;
+  const mb=makeGlyph($('#mbGlyph'),'playing',18), pg=makeGlyph($('#popGlyph'),'playing',20);
+  const S={on:true,quieted:false,zoom:false,xcode:false,pend:{zoom:false,xcode:false}};
+  let vol=NORMAL, volAnim=null;
+
+  function fadeTo(target){
+    cancelAnimationFrame(volAnim); const from=vol; if(Math.abs(from-target)<.1){vol=target; paintVol(); return;}
+    const down=target<from, dur=(down?FADE_OUT:FADE_IN)*Math.abs(from-target)/NORMAL, t0=performance.now();
+    const tick=now=>{const t=Math.min(1,(now-t0)/Math.max(dur,1));
+      const k=down?1-Math.cos(t*Math.PI/2):Math.sin(t*Math.PI/2);
+      vol=from+(target-from)*k; paintVol(); if(t<1) volAnim=requestAnimationFrame(tick);};
+    volAnim=requestAnimationFrame(tick);
+  }
+  function paintVol(){ $('#volFill').style.transform=`scaleX(${vol/100})`; $('#volN').textContent=Math.round(vol)+'%'; }
+  paintVol();
+
+  function derive(){
+    if(!S.on) return {shape:'off',t1:'Mauna is off',t2:'Back on at 4:11 PM',vol:NORMAL,active:[]};
+    if(S.zoom){ const both=S.xcode; return {shape:'paused',t1:'Paused for Zoom'+(both?' + 1':''),t2:both?'Resumes when both end':'Resumes when the call ends',vol:0,active:['zoom'].concat(both?['xcode']:[])}; }
+    if(S.xcode) return {shape:'ducked',t1:'Lowered for Xcode',t2:`Back to ${NORMAL}% when you leave`,vol:NORMAL*DUCK,active:['xcode']};
+    if(S.quieted) return {shape:'ducked',t1:'Quieted by you',t2:'Press ⌃⌥Space to bring it back',vol:NORMAL*DUCK,active:[]};
+    return {shape:'playing',t1:'Playing on Spotify',t2:'Watching 3 apps',vol:NORMAL,active:[]};
+  }
+  let prevShape='playing';
+  function render(fromKeyboard){
+    const d=derive();
+    if(d.shape!==prevShape){ setShape(mb,d.shape,fromKeyboard); setShape(pg,d.shape,fromKeyboard); prevShape=d.shape; }
+    if(fromKeyboard){$('#t1').textContent=d.t1; $('#t2').textContent=d.t2;} else {swapText($('#t1'),d.t1); swapText($('#t2'),d.t2);}
+    $('#gw').classList.toggle('on',d.shape==='paused'||d.shape==='ducked');
+    $('#rowZoom').classList.toggle('active',d.active.includes('zoom')); $('#bZoom').classList.toggle('accent',d.active.includes('zoom'));
+    $('#rowXcode').classList.toggle('active',d.active.includes('xcode')); $('#bXcode').classList.toggle('accent',d.active.includes('xcode'));
+    $('#master').setAttribute('aria-checked',S.on);
+    const ruleOwns=S.zoom||S.xcode;
+    $('#quietLbl').innerHTML = S.quieted&&!ruleOwns ? 'Bring back <span class="kbd">⌃⌥Space</span>' : 'Quiet now <span class="kbd">⌃⌥Space</span>';
+    $('#quietBtn').disabled=!S.on;
+    $('#snoozeBtn').textContent=S.on?'Snooze':'Turn on';
+    fadeTo(d.vol);
+  }
+
+  /* debounce with visible ring (constant motion → linear) */
+  const pendTimers={}; let ringAnim=null;
+  function schedule(key,val){
+    clearTimeout(pendTimers[key]); if(ringAnim) ringAnim.cancel();
+    const app=key==='zoom'?'Zoom':'Xcode';
+    $('#pendingTx').textContent = val ? `${app} detected` : `${app} ended`;
+    $('#pending').classList.add('show');
+    ringAnim=$('#ringArc').animate([{strokeDashoffset:37.7},{strokeDashoffset:0}],{duration:DEBOUNCE,easing:'linear',fill:'forwards'});
+    pendTimers[key]=setTimeout(()=>{ S[key]=val; delete pendTimers[key]; if(!Object.keys(pendTimers).length) $('#pending').classList.remove('show'); render(false); },DEBOUNCE);
+  }
+  $$('.chip[data-sim]').forEach(c=>c.addEventListener('click',()=>{
+    const k=c.dataset.sim, on=c.getAttribute('aria-pressed')!=='true';
+    c.setAttribute('aria-pressed',on);
+    c.textContent = k==='zoom' ? (on?'End call':'Join Zoom call') : (on?'Leave Xcode':'Switch to Xcode');
+    if(!S.on){S[k]=on; return;}
+    schedule(k,on);
+  }));
+  $('#quietBtn').addEventListener('click',()=>{
+    if(S.zoom||S.xcode){ swapText($('#t1'),'Still paused for '+(S.zoom?'Zoom':'Xcode')); setTimeout(()=>render(false),1600); return; }
+    S.quieted=!S.quieted; render(false);
+  });
+  $('#master').addEventListener('click',()=>{S.on=!S.on; render(false);});
+  $('#snoozeBtn').addEventListener('click',()=>{S.on=!S.on; render(false);});
+  // keyboard: Q stands in for ⌃⌥Space — instant, no animation
+  addEventListener('keydown',e=>{ if((e.key==='q'||e.key==='Q')&&!e.metaKey&&!e.ctrlKey&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ if(S.zoom||S.xcode||!S.on) return; S.quieted=!S.quieted; render(true);} });
+
+  /* popover open/close from icon */
+  $('#mbBtn').addEventListener('click',()=>{const p=$('#pop'), open=p.classList.toggle('closed'); $('#mbBtn').setAttribute('aria-expanded',!open);});
+})();
+</script>
+</body>
+</html>
