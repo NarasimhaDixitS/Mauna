@@ -15,7 +15,7 @@ The rule engine is plain Swift with unit tests, so edge cases (debounce, overlap
 
 | # | Phase | Build | Try it |
 |---|---|---|---|
-| 0 | Foundation | Xcode project (XcodeGen `project.yml`), no Dock icon (`LSUIElement`), `MenuBarExtra`, `DesignSystem` module from `tokens.json`, `mauna.wave` glyph | Wave icon in the menu bar; click it for an empty popover |
+| 0 | Foundation | Xcode project (XcodeGen `project.yml`), no Dock icon (`LSUIElement`), `MenuBarExtra`, `DesignSystem` folder from `tokens.json`, wave glyph drawn in code | Wave icon in the menu bar; click it for an empty popover |
 | 1 | Player control | Spotify + Apple Music via AppleScript: is playing, pause, play, get/set volume. Equal-power fade engine. Debug buttons | Click Pause: Spotify fades out over 1.2 s and pauses in place; Play fades back to normal volume |
 | 2 | Rule engine | App watcher (`NSWorkspace`), "In front" and "Running" triggers, debounce, active-trigger list, never resume what the user paused, user-pressed-play override, player-quit handling. Rules hard-coded | Switch to Xcode → music pauses; ⌘Tab away → it resumes; quick switches don't flicker |
 | 3 | Quiet shortcut | ⌃⌥Space toggle mode (KeyboardShortcuts package). Manual action wins, "Still paused for Zoom", ignore presses < 300 ms, never start music | Quiet music from any app; a rule can't bring it back |

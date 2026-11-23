@@ -63,7 +63,8 @@ Decide in this order: **should it animate → why → easing → duration.**
 
 ## Icon
 
-- Custom SF Symbol `mauna.wave`, 5 bars, 18pt template. States: playing, ducked, paused, off (35% opacity). Morph with `.contentTransition(.symbolEffect(.replace))`.
+- The wave, 5 bars on an 18pt canvas, drawn in code from the glyph tokens (`WaveGlyph.swift`). States: playing, ducked, paused, off (35% opacity).
+- Menu bar: template `NSImage`, swaps instantly. In Mauna's own UI: `WaveGlyphView`, which morphs bar heights on the default spring (crossfade under Reduce Motion).
 - Same glyph = same sound. "Quieted by you" and "Lowered for Xcode" share the low-bars glyph.
 
 ## Voice
