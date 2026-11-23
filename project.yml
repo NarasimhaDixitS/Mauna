@@ -42,11 +42,15 @@ targets:
         LSApplicationCategoryType: public.app-category.music
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHumanReadableCopyright: "© 2026 Throttle Labs"
+        NSAppleEventsUsageDescription: Mauna pauses, resumes and fades your music player. It never reads what you listen to.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: in.throttlelabs.mauna
         PRODUCT_NAME: Mauna
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
-        CODE_SIGN_IDENTITY: "-"    # sign to run locally; a real team comes in Phase 1
-        ENABLE_APP_SANDBOX: NO     # direct DMG distribution, see docs/ROADMAP.md
+        CODE_SIGN_IDENTITY: Apple Development
+        DEVELOPMENT_TEAM: 23495RS836   # a stable signature keeps the Automation permission across rebuilds
+        CODE_SIGN_ENTITLEMENTS: Mauna/Mauna.entitlements
+        ENABLE_HARDENED_RUNTIME: YES   # required for notarization (Phase 6)
+        ENABLE_APP_SANDBOX: NO         # direct DMG distribution, see docs/ROADMAP.md
