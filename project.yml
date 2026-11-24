@@ -32,6 +32,8 @@ targets:
     platform: macOS
     sources:
       - path: Mauna
+    scheme:
+      testTargets: [MaunaTests]
     info:
       path: Mauna/Info.plist
       properties:
@@ -54,3 +56,18 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Mauna/Mauna.entitlements
         ENABLE_HARDENED_RUNTIME: YES   # required for notarization (Phase 6)
         ENABLE_APP_SANDBOX: NO         # direct DMG distribution, see docs/ROADMAP.md
+
+  # Logic tests. Pure files are compiled straight in, so tests never launch Mauna or touch a player.
+  MaunaTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MaunaTests
+      - path: Mauna/Rules/Rule.swift
+      - path: Mauna/Rules/RuleEngine.swift
+      - path: Mauna/DesignSystem/AudioTiming.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: in.throttlelabs.mauna.tests
+        GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: 23495RS836

@@ -17,9 +17,9 @@ The rule engine is plain Swift with unit tests, so edge cases (debounce, overlap
 |---|---|---|---|
 | 0 | Foundation | Xcode project (XcodeGen `project.yml`), no Dock icon (`LSUIElement`), `MenuBarExtra`, `DesignSystem` folder from `tokens.json`, wave glyph drawn in code | Wave icon in the menu bar; click it for an empty popover |
 | 1 | Player control | Spotify + Apple Music via AppleScript: is playing, pause, play, get/set volume. Equal-power fade engine. Debug buttons | Click Pause: Spotify fades out over 1.2 s and pauses in place; Play fades back to normal volume |
-| 2 | Rule engine | App watcher (`NSWorkspace`), "In front" and "Running" triggers, debounce, active-trigger list, never resume what the user paused, user-pressed-play override, player-quit handling. Rules hard-coded | Switch to Xcode → music pauses; ⌘Tab away → it resumes; quick switches don't flicker |
-| 3 | Quiet shortcut | ⌃⌥Space toggle mode (KeyboardShortcuts package). Manual action wins, "Still paused for Zoom", ignore presses < 300 ms, never start music | Quiet music from any app; a rule can't bring it back |
-| 4 | Real UI | Popover per design system (status line, glyph morph, master switch, Quiet now, rules list). Settings window: Rules (app picker, smart default trigger), Sound, General. UserDefaults persistence. Launch at login (`SMAppService`) | Matches the design page; rules survive a restart |
+| 2 | Rule engine | App watcher (`NSWorkspace`), "In front" and "Running" triggers, debounce, active-trigger list, never resume what the user paused, user-pressed-play override, player-quit handling, away mode (screen saver, lock, sleep hold everything), your own pause wins over rules. Rules hard-coded | Switch to Xcode → music pauses; ⌘Tab away → it resumes; quick switches don't flicker |
+| 3 | Quiet shortcut | ⌃⌥Space toggle mode (KeyboardShortcuts package), built on the manual hold from Phase 2, "Still paused for Zoom", ignore presses < 300 ms, never start music | Quiet music from any app; a rule can't bring it back |
+| 4 | Real UI | Popover per design system (status line, glyph morph, master switch, Quiet now, rules list, quick rule: "Pause / Lower until Safari quits" for the app in front when it has no rule, with "Make it a rule"). Settings window: Rules (app picker, smart default trigger), Sound, General. UserDefaults persistence. Launch at login (`SMAppService`) | Matches the design page; rules survive a restart |
 | 5 | YouTube Music + onboarding | YouTube Music in Chrome and Safari via AppleScript JavaScript, with setup screen. 3-step onboarding. Permissions asked only when needed | YouTube Music pauses too; fresh install walks through setup |
 | 6 | Ship | Free/Pro gating, trial, license key. App icon. Developer ID signing, hardened runtime, notarization, DMG | An installable `.dmg` ready for Gumroad or Paddle |
 
@@ -36,6 +36,11 @@ The rule engine is plain Swift with unit tests, so edge cases (debounce, overlap
 | Minimum macOS | 14.2. The Core Audio calls the mic trigger needs work best from 14.2 | Phase 0 |
 | Distribution | Direct, unsandboxed, notarized DMG first. App Store later, if at all | Phase 1 |
 | Master switch placement, live volume row | Decide on the real popover, not the HTML mock | Phase 4 |
+| Two rules at once | The strongest wins (pause beats lower). The status line names it: "Paused for Chess + 1" | Phase 2 |
+| What "In front" means | The app you're using (its name in the menu bar), whatever its window size. Split View: only the app you clicked last | Phase 2 |
+| Split View sharing a rule | No. macOS has no public way to tell which apps are paired; the quick rule covers it | Phase 2 |
+| Away (screen saver, locked, asleep) | Hold everything; nothing resumes or pauses. On return, changes wait a fresh 1.5 s | Phase 2 |
+| Your pause vs a rule | Music gets the stronger of the two. A rule ending never undoes your pause; only you do | Phase 2 |
 
 ## Changes from the spec
 

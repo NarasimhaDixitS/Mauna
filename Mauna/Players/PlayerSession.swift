@@ -2,15 +2,16 @@ import AppKit
 import Observation
 
 /// Owns one music player: what it's doing, and what Mauna has done to it.
-/// The rule engine (Phase 2) and the quiet shortcut (Phase 3) call `quiet(_:)` and `release()`.
+/// The rule coordinator calls `setRuleHold(_:)`; you (debug buttons, quiet shortcut) call `quiet(_:)` and `release()`.
+/// The music gets the stronger of the two, so a rule ending never undoes a pause you made.
 ///
 /// Rules it keeps (spec › Edge cases):
 /// - Never resume what the user paused: Mauna only quiets music that is playing, and only resumes what it quieted.
 /// - Fades start from the volume playing now and always end at the saved normal volume.
+/// - The user pressed play during a pause: let it play, and tell the rules (`onUserOverride`).
 /// - Player quit while quieted: don't relaunch it, just clear the hold.
 @Observable
 final class PlayerSession {
-    enum Hold: Equatable { case none, paused, ducked }
     enum QuietMode { case pause, duck }
 
     enum Issue: Equatable {
@@ -28,6 +29,10 @@ final class PlayerSession {
     private(set) var volume: Double?
     /// What Mauna is currently doing to the music.
     private(set) var hold: Hold = .none
+    /// What the rules want.
+    private(set) var ruleHold: Hold = .none
+    /// What you asked for. Only you clear it.
+    private(set) var manualHold: Hold = .none
     private(set) var isFading = false
     private(set) var issue: Issue?
 
@@ -35,6 +40,9 @@ final class PlayerSession {
     var normalVolume: Double = AudioTiming.normalVolume
     /// Ducked volume as a share of the normal volume.
     var duckLevel: Double = AudioTiming.duckLevel
+
+    /// Called when the user presses play while Mauna has the music paused.
+    var onUserOverride: (() -> Void)?
 
     // MARK: Private
 
@@ -52,77 +60,119 @@ final class PlayerSession {
 
     func select(_ player: PlayerID) {
         guard player != self.player else { return }
-        release(animated: false)
+        manualHold = .none
+        apply(.none, animated: false)
         self.player = player
         controller = ScriptablePlayer(player: player)
         playback = nil
         volume = nil
         issue = nil
         refresh()
+        resolve()   // rules still in charge apply to the new player
     }
 
     // MARK: Actions
 
-    /// Fade out and pause, or fade down to the duck level. Does nothing if nothing is playing.
-    /// Pause outranks duck: pausing lowered music pauses on top; lowering paused music does nothing.
+    /// The rule engine's decision changed.
+    func setRuleHold(_ target: Hold) {
+        ruleHold = target
+        resolve()
+    }
+
+    /// Manual quiet (debug buttons, quiet shortcut). Pause outranks duck: lowering paused music does nothing.
     func quiet(_ mode: QuietMode) {
         let target: Hold = mode == .pause ? .paused : .ducked
-        guard hold != target, hold != .paused else { return }
+        guard target > hold else { return }
+        manualHold = target
+        resolve()
+    }
+
+    /// You want the music back: resume and fade in, or fade back up from the duck level.
+    /// Rules in charge step aside until their trigger ends, as if you pressed play.
+    func release(animated: Bool = true) {
+        manualHold = .none
+        if ruleHold != .none { onUserOverride?() }   // the coordinator answers with setRuleHold(.none)
+        resolve(animated: animated)
+    }
+
+    private func resolve(animated: Bool = true) {
+        apply(max(manualHold, ruleHold), animated: animated)
+    }
+
+    /// Move the music to `target` from whatever Mauna is doing now.
+    /// - none → paused or ducked: only if music is playing. Never touch music the user stopped.
+    /// - ducked → paused: fade the rest of the way and pause on top.
+    /// - paused → ducked: resume and fade in to the duck level.
+    /// - anything → none: resume, or fade back up, to the normal volume.
+    private func apply(_ target: Hold, animated: Bool = true) {
+        guard target != hold else { return }
         let previousHold = hold
-        hold = target   // set now, so a release that arrives mid-fade undoes it
+        hold = target   // set now, so a change that arrives mid-fade starts from here
         enqueue { session, controller in
-            if previousHold == .none {
-                // Never pause music the user already stopped.
-                let state = try await controller.state()
-                guard state == .playing else {
-                    session.playback = state
-                    session.hold = .none
-                    return
-                }
+            let state = try await controller.state()
+            if target != .none, previousHold == .none, state != .playing {
+                session.playback = state
+                session.hold = .none
+                session.manualHold = .none   // nothing to quiet, so nothing for you to undo later
+                return
             }
-            let start = try await controller.volume()
             switch target {
             case .paused:
-                try await session.fade(controller, from: start, to: 0, full: AudioTiming.fadeOut)
-                try await controller.pause()
-                // Leave the player at the normal volume, so pressing play by hand isn't silent.
-                try await controller.setVolume(session.normalVolume)
-                session.volume = session.normalVolume
-                session.playback = .paused
+                try await session.fadeOutAndPause(controller, state: state)
             case .ducked:
-                try await session.fade(controller, from: start, to: session.normalVolume * session.duckLevel, full: AudioTiming.fadeOut)
+                try await session.duck(controller, state: state, from: previousHold)
             case .none:
-                break
+                try await session.restore(controller, state: state, from: previousHold, animated: animated)
             }
         }
     }
 
-    /// Undo whatever Mauna did: resume and fade in, or fade back up from the duck level.
-    func release(animated: Bool = true) {
-        guard hold != .none else { return }
-        let previousHold = hold
-        hold = .none
-        enqueue { session, controller in
-            let state = try await controller.state()
-            switch (previousHold, state) {
-            case (.paused, .paused):
-                try await controller.setVolume(0)
-                try await controller.play()
-                session.playback = .playing
-                if animated {
-                    try await session.fade(controller, from: 0, to: session.normalVolume, full: AudioTiming.fadeIn)
-                } else {
-                    try await controller.setVolume(session.normalVolume)
-                }
-            case (_, .playing):
-                // Mid fade-out, ducked, or the user already pressed play: fade up from where it is now.
-                let start = try await controller.volume()
-                try await session.fade(controller, from: start, to: session.normalVolume, full: AudioTiming.fadeIn)
-            default:
-                // Stopped, or the user changed something: leave playback alone, just restore the volume.
-                try await controller.setVolume(session.normalVolume)
-                session.volume = session.normalVolume
+    private func fadeOutAndPause(_ controller: any PlayerController, state: PlaybackState) async throws {
+        guard state == .playing else { return }
+        let start = try await controller.volume()
+        try await fade(controller, from: start, to: 0, full: AudioTiming.fadeOut)
+        try await controller.pause()
+        // Leave the player at the normal volume, so pressing play by hand isn't silent.
+        try await controller.setVolume(normalVolume)
+        volume = normalVolume
+        playback = .paused
+    }
+
+    private func duck(_ controller: any PlayerController, state: PlaybackState, from previousHold: Hold) async throws {
+        let target = normalVolume * duckLevel
+        switch (previousHold, state) {
+        case (_, .playing):
+            let start = try await controller.volume()
+            try await fade(controller, from: start, to: target, full: AudioTiming.fadeOut)
+        case (.paused, .paused):
+            try await controller.setVolume(0)
+            try await controller.play()
+            playback = .playing
+            try await fade(controller, from: 0, to: target, full: AudioTiming.fadeIn)
+        default:
+            break
+        }
+    }
+
+    private func restore(_ controller: any PlayerController, state: PlaybackState, from previousHold: Hold, animated: Bool) async throws {
+        switch (previousHold, state) {
+        case (.paused, .paused):
+            try await controller.setVolume(0)
+            try await controller.play()
+            playback = .playing
+            if animated {
+                try await fade(controller, from: 0, to: normalVolume, full: AudioTiming.fadeIn)
+            } else {
+                try await controller.setVolume(normalVolume)
             }
+        case (_, .playing):
+            // Mid fade-out, ducked, or the user already pressed play: fade up from where it is now.
+            let start = try await controller.volume()
+            try await fade(controller, from: start, to: normalVolume, full: AudioTiming.fadeIn)
+        default:
+            // Stopped, or the user paused it: leave playback alone, just restore the volume.
+            try await controller.setVolume(normalVolume)
+            volume = normalVolume
         }
     }
 
@@ -167,6 +217,7 @@ final class PlayerSession {
             } catch ScriptError.notAuthorized {
                 self.issue = .needsPermission(controller.player)
                 self.hold = .none
+                self.manualHold = .none
             } catch ScriptError.notRunning {
                 self.playerQuit()
             } catch {
@@ -192,6 +243,7 @@ final class PlayerSession {
         playback = nil
         volume = nil
         hold = .none
+        manualHold = .none
     }
 
     private func observe() {
@@ -202,6 +254,12 @@ final class PlayerSession {
                 MainActor.assumeIsolated {
                     guard let self, self.player == id, let raw, let state = PlaybackState(scriptValue: raw) else { return }
                     self.isRunning = true
+                    // Mauna finished pausing, and now it plays: the user pressed play. Respect it.
+                    if self.hold == .paused, self.playback == .paused, state == .playing, !self.isFading {
+                        self.hold = .none
+                        self.manualHold = .none
+                        self.onUserOverride?()
+                    }
                     self.playback = state
                 }
             })

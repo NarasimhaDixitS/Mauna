@@ -16,6 +16,11 @@ struct PopoverView: View {
                     .padding(Spacing.m)
             }
 
+            Divider().overlay(.hairline)
+            RulesList(coordinator: model.rules)
+                .padding(.horizontal, Spacing.s)
+                .padding(.vertical, Spacing.s)
+
             #if DEBUG
             Divider().overlay(.hairline)
             PlayerDebugPanel(session: model.session)
@@ -48,11 +53,14 @@ struct PopoverView: View {
                     .font(.headline)
                     .id(model.statusLine)
                     .transition(.blurCrossfade)
-                Text("Not watching any apps yet")
+                Text(model.detailLine)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .id(model.detailLine)
+                    .transition(.blurCrossfade)
             }
             .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: model.statusLine)
+            .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: model.detailLine)
 
             Spacer(minLength: 0)
         }
