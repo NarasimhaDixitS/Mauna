@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // Mauna's own surfaces and controls. Measured from design/design-system.html, then given depth:
@@ -111,10 +112,17 @@ struct PlainTextButtonStyle: ButtonStyle {
 struct AppIconView: View {
     let bundleID: String
     var size: CGFloat = 24
+    /// Where the app is, when Launch Services doesn't know it by bundle ID.
+    var path: String? = nil
 
     var body: some View {
         Group {
-            if AppIcon.isInstalled(bundleID) {
+            if let path {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+                    .resizable()
+                    .interpolation(.high)
+                    .shadow(color: .black.opacity(0.18), radius: size / 16, y: size / 24)
+            } else if AppIcon.isInstalled(bundleID) {
                 Image(nsImage: AppIcon.image(for: bundleID))
                     .resizable()
                     .interpolation(.high)

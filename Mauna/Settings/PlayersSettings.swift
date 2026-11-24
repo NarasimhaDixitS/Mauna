@@ -9,9 +9,19 @@ struct PlayersSettings: View {
             SettingsCard {
                 ForEach(Array(PlayerID.allCases.enumerated()), id: \.element) { index, player in
                     SettingsRow(showsDivider: index < PlayerID.allCases.count - 1) {
-                        PlayerChoice(player: player, isSelected: session.player == player) {
-                            session.select(player)
+                        VStack(alignment: .leading, spacing: 12) {
+                            PlayerChoice(player: player, isSelected: session.player == player) {
+                                session.select(player)
+                            }
+                            if player.isBrowser, session.player == player {
+                                BrowserSetupGuide(player: player, session: session)
+                                    .padding(12)
+                                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.popRow))
+                                    .padding(.leading, 44)
+                                    .transition(.opacity)
+                            }
                         }
+                        .animation(.maunaEaseOut(0.2), value: session.player)
                     }
                 }
             }
@@ -28,13 +38,19 @@ private struct PlayerChoice: View {
     let isSelected: Bool
     let select: () -> Void
 
+    private var statusText: String {
+        guard player.isInstalled else { return player.isBrowser ? "\(player.browserName ?? "Browser") isn't installed" : "Not installed" }
+        if player.isBrowser { return "Plays in a \(player.browserName ?? "") tab. Needs one setting." }
+        return player.isRunning ? "Open" : "Installed"
+    }
+
     var body: some View {
         Button(action: select) {
             HStack(spacing: 12) {
                 AppIconView(bundleID: player.bundleID, size: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(player.displayName).font(.body.weight(.medium))
-                    Text(player.isInstalled ? (player.isRunning ? "Open" : "Installed") : "Not installed")
+                    Text(player.fullName).font(.body.weight(.medium))
+                    Text(statusText)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }

@@ -21,8 +21,8 @@ struct PopoverView: View {
                 .padding(.horizontal, 4)
                 .padding(.bottom, 8)
 
-            if case .needsPermission(let player) = model.session.issue {
-                PermissionNotice(player: player)
+            if let issue = model.session.issue, issue.needsSetup {
+                SetupNotice(issue: issue)
                     .padding(.horizontal, 8)
                     .padding(.bottom, 8)
             }
@@ -158,28 +158,45 @@ private struct PlayerCard: View {
                 }
                 .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: stateText)
                 Spacer(minLength: 0)
-                Text("\(Int((session.normalVolume * 100).rounded()))%")
+                Text(percentText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .contentTransition(.numericText())
             }
 
-            HStack(spacing: 8) {
-                Image(systemName: "speaker.fill")
-                MaunaSlider(value: $session.normalVolume, range: 0.1...1, step: 0.01)
-                    .accessibilityLabel("Normal volume")
-                Image(systemName: "speaker.wave.3.fill")
+            if session.player.isBrowser {
+                // The page owns its volume: Mauna only lowers and pauses it, then hands it back.
+                Label("Volume follows YouTube Music", systemImage: "slider.horizontal.below.rectangle")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "speaker.fill")
+                    MaunaSlider(value: $session.normalVolume, range: 0.1...1, step: 0.01)
+                        .accessibilityLabel("Normal volume")
+                    Image(systemName: "speaker.wave.3.fill")
+                }
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
             }
-            .font(.system(size: 10))
-            .foregroundStyle(.tertiary)
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.popRow))
     }
 
+    /// Native players: the normal volume you set. YouTube Music: the level you hear now.
+    private var percentText: String {
+        if session.player.isBrowser {
+            guard let volume = session.volume, session.playback == .playing else { return "" }
+            return "\(Int((volume * 100).rounded()))%"
+        }
+        return "\(Int((session.normalVolume * 100).rounded()))%"
+    }
+
     private var stateText: String {
-        guard session.isRunning else { return "Not open" }
+        guard session.isRunning else { return session.player.browserName.map { "\($0) isn't open" } ?? "Not open" }
+        if session.player.isBrowser, session.playback == .stopped, session.hold == .none { return "No YouTube Music tab open" }
         switch session.hold {
         case .paused: return "Paused by Mauna"
         case .ducked: return "Lowered by Mauna"
@@ -194,28 +211,52 @@ private struct PlayerCard: View {
 }
 
 /// Orange = needs setup. One plain sentence on why, then the next step.
-private struct PermissionNotice: View {
-    let player: PlayerID
+private struct SetupNotice: View {
+    let issue: PlayerSession.Issue
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            Label("Mauna can't control \(player.displayName)", systemImage: "exclamationmark.circle.fill")
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: "exclamationmark.circle.fill")
                 .font(.headline)
                 .foregroundStyle(.needsSetup)
-            Text("Allow it in Privacy & Security › Automation, so Mauna can pause and fade your music.")
+            Text(reason)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Open Automation Settings") {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
-                    NSWorkspace.shared.open(url)
+            if case .needsBrowserSetup(let player) = issue {
+                MenuPath(items: player == .youTubeMusicSafari
+                         ? ["Develop", "Allow JavaScript from Apple Events"]
+                         : ["View", "Developer", "Allow JavaScript from Apple Events"])
+                SettingsButton(title: "Show me how", tab: .players)
+                    .buttonStyle(.maunaSmall)
+            } else {
+                Button("Open Automation Settings") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+                        NSWorkspace.shared.open(url)
+                    }
                 }
+                .buttonStyle(.maunaSmall)
             }
-            .buttonStyle(.maunaSmall)
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.orange.opacity(0.1)))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.orange.opacity(0.1)))
+    }
+
+    private var title: String {
+        switch issue {
+        case .needsPermission(let player): "Mauna can't control \(player.fullName)"
+        case .needsBrowserSetup(let player): "Allow Mauna in \(player.browserName ?? "the browser")"
+        case .failed(let message): message
+        }
+    }
+
+    private var reason: String {
+        switch issue {
+        case .needsPermission: "Allow it in Privacy & Security › Automation, so Mauna can pause and fade your music."
+        case .needsBrowserSetup: "Turn on one setting, so Mauna can pause and fade YouTube Music."
+        case .failed: ""
+        }
     }
 }
 

@@ -25,7 +25,7 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(SettingsTab.general)
             #if DEBUG
-            DebugSettings(session: model.session)
+            DebugSettings(model: model)
                 .tabItem { Label("Debug", systemImage: "ladybug") }
                 .tag(SettingsTab.debug)
             #endif
@@ -37,7 +37,8 @@ struct SettingsView: View {
 #if DEBUG
 /// Phase 1 test controls, kept for testing fades. Only debug builds have this tab.
 private struct DebugSettings: View {
-    let session: PlayerSession
+    let model: AppModel
+    private var session: PlayerSession { model.session }
 
     var body: some View {
         Form {
@@ -51,6 +52,7 @@ private struct DebugSettings: View {
                         .disabled(session.hold == .none)
                 }
                 .disabled(!session.isRunning)
+                Button("Show welcome window") { OnboardingWindow.show(model: model) }
                 LabeledContent("Hold", value: "\(session.hold)")
                 LabeledContent("Rule hold", value: "\(session.ruleHold)")
                 LabeledContent("Your hold", value: "\(session.manualHold)")

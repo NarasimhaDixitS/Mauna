@@ -117,7 +117,7 @@ private struct RuleEditorRow: View {
 }
 
 /// Running apps first (the likeliest picks), then the Applications folder.
-private struct AddAppMenu: View {
+struct AddAppMenu: View {
     let coordinator: RuleCoordinator
 
     var body: some View {
@@ -149,7 +149,7 @@ private struct AddAppMenu: View {
 
     private var runningApps: [NSRunningApplication] {
         let own = Bundle.main.bundleIdentifier
-        let players = Set(PlayerID.allCases.map(\.bundleID))
+        let players = PlayerID.nativeBundleIDs
         return NSWorkspace.shared.runningApplications
             .filter { app in
                 guard app.activationPolicy == .regular, let id = app.bundleIdentifier else { return false }

@@ -10,6 +10,9 @@ struct MaunaApp: App {
         if let path = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] {
             DesignSnapshot.render(to: path)
         }
+        if ProcessInfo.processInfo.environment["MAUNA_PROBE"] != nil {
+            DesignSnapshot.probeYouTubeMusic()
+        }
     }
     #endif
 

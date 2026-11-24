@@ -19,6 +19,13 @@ final class AppModel {
         self.session = session
         self.rules = RuleCoordinator(session: session)
         KeyboardShortcuts.onKeyDown(for: .quietMusic) { [weak self] in self?.quietPressed() }
+        // First launch: welcome window, once the app has finished starting.
+        if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] == nil, ProcessInfo.processInfo.environment["MAUNA_PROBE"] == nil {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                OnboardingWindow.showIfNeeded(model: self)
+            }
+        }
     }
 
     // MARK: Quiet shortcut
@@ -146,7 +153,7 @@ final class AppModel {
     /// The app in front, when it has no rule yet: the popover offers "Pause until it quits".
     var quickRuleCandidate: FrontApp? {
         guard rules.isEnabled, let id = rules.frontmost, !rules.hasRule(for: id),
-              !Self.neverQuiet.contains(id), !PlayerID.allCases.contains(where: { $0.bundleID == id })
+              !Self.neverQuiet.contains(id), !PlayerID.nativeBundleIDs.contains(id)
         else { return nil }
         // Only real apps with a Dock icon, never background helpers.
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: id).first,

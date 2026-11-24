@@ -73,6 +73,7 @@ targets:
       - path: Mauna/Rules/Rule.swift
       - path: Mauna/Rules/RuleEngine.swift
       - path: Mauna/Rules/QuietShortcut.swift
+      - path: Mauna/Rules/Suggestions.swift
       - path: Mauna/DesignSystem/AudioTiming.swift
     settings:
       base:

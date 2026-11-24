@@ -42,6 +42,8 @@ nonisolated enum ScriptError: Error, Equatable, Sendable {
     case notRunning
     /// The app didn't answer in time.
     case timedOut
+    /// The browser blocks JavaScript from Apple Events (a one-time setting).
+    case javaScriptOff
     case failed(code: Int, message: String)
 
     init(_ info: NSDictionary) {
@@ -50,7 +52,15 @@ nonisolated enum ScriptError: Error, Equatable, Sendable {
         case -1743, -1744: self = .notAuthorized
         case -600, -609:   self = .notRunning
         case -1712:        self = .timedOut
-        default:           self = .failed(code: code, message: info[NSAppleScript.errorMessage] as? String ?? "")
+        default:
+            let message = info[NSAppleScript.errorMessage] as? String ?? ""
+            // Chrome: "Executing JavaScript through AppleScript is turned off…"
+            // Safari: "You must enable the 'Allow JavaScript from Apple Events' option…"
+            if message.localizedCaseInsensitiveContains("JavaScript") && (message.localizedCaseInsensitiveContains("turned off") || message.localizedCaseInsensitiveContains("Allow JavaScript")) {
+                self = .javaScriptOff
+            } else {
+                self = .failed(code: code, message: message)
+            }
         }
     }
 }

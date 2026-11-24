@@ -17,7 +17,16 @@ final class PlayerSession {
     enum Issue: Equatable {
         /// Automation permission is off for this player.
         case needsPermission(PlayerID)
+        /// The browser blocks JavaScript from Apple Events (YouTube Music only). A one-time setting.
+        case needsBrowserSetup(PlayerID)
         case failed(String)
+
+        var needsSetup: Bool {
+            switch self {
+            case .needsPermission, .needsBrowserSetup: true
+            case .failed: false
+            }
+        }
     }
 
     // MARK: State the UI reads
@@ -62,6 +71,7 @@ final class PlayerSession {
     private var work: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
     private var volumeTask: Task<Void, Never>?
+    private var poller: Task<Void, Never>?
 
     private enum Keys {
         static let normalVolume = "normalVolume"
@@ -76,11 +86,13 @@ final class PlayerSession {
 
     init(player: PlayerID? = nil) {
         let savedPlayer = UserDefaults.standard.string(forKey: Keys.player).flatMap(PlayerID.init(rawValue:))
-        let chosen = player ?? savedPlayer ?? PlayerID.installed.first(where: \.isRunning) ?? PlayerID.installed.first ?? .appleMusic
+        let native = PlayerID.installed.filter { !$0.isBrowser }
+        let chosen = player ?? savedPlayer ?? native.first(where: \.isRunning) ?? native.first ?? .appleMusic
         self.player = chosen
-        self.controller = ScriptablePlayer(player: chosen)
+        self.controller = chosen.makeController()
         observe()
         refresh()
+        startPolling()
     }
 
     func select(_ player: PlayerID) {
@@ -89,11 +101,12 @@ final class PlayerSession {
         apply(.none, animated: false)
         self.player = player
         UserDefaults.standard.set(player.rawValue, forKey: Keys.player)
-        controller = ScriptablePlayer(player: player)
+        controller = player.makeController()
         playback = nil
         volume = nil
         issue = nil
         refresh()
+        startPolling()
         resolve()   // rules still in charge apply to the new player
     }
 
@@ -161,19 +174,26 @@ final class PlayerSession {
         }
     }
 
+    /// The level music rests at: the saved normal volume, or the player's own (YouTube Music's slider).
+    private func restingVolume(_ controller: any PlayerController) async -> Double {
+        (try? await controller.homeVolume()) ?? normalVolume
+    }
+
     private func fadeOutAndPause(_ controller: any PlayerController, state: PlaybackState) async throws {
         guard state == .playing else { return }
         let start = try await controller.volume()
         try await fade(controller, from: start, to: 0, full: fadeTime)
         try await controller.pause()
-        // Leave the player at the normal volume, so pressing play by hand isn't silent.
-        try await controller.setVolume(normalVolume)
-        volume = normalVolume
+        // Leave the player at its resting volume, so pressing play by hand isn't silent.
+        let resting = await restingVolume(controller)
+        try await controller.setVolume(resting)
+        try await controller.releaseVolume()
+        volume = resting
         playback = .paused
     }
 
     private func duck(_ controller: any PlayerController, state: PlaybackState, from previousHold: Hold) async throws {
-        let target = normalVolume * duckLevel
+        let target = await restingVolume(controller) * duckLevel
         switch (previousHold, state) {
         case (_, .playing):
             let start = try await controller.volume()
@@ -189,25 +209,28 @@ final class PlayerSession {
     }
 
     private func restore(_ controller: any PlayerController, state: PlaybackState, from previousHold: Hold, animated: Bool) async throws {
+        let resting = await restingVolume(controller)
         switch (previousHold, state) {
         case (.paused, .paused):
             try await controller.setVolume(0)
             try await controller.play()
             playback = .playing
             if animated {
-                try await fade(controller, from: 0, to: normalVolume, full: fadeInTime)
+                try await fade(controller, from: 0, to: resting, full: fadeInTime)
             } else {
-                try await controller.setVolume(normalVolume)
+                try await controller.setVolume(resting)
             }
         case (_, .playing):
             // Mid fade-out, ducked, or the user already pressed play: fade up from where it is now.
             let start = try await controller.volume()
-            try await fade(controller, from: start, to: normalVolume, full: fadeInTime)
+            try await fade(controller, from: start, to: resting, full: fadeInTime)
         default:
             // Stopped, or the user paused it: leave playback alone, just restore the volume.
-            try await controller.setVolume(normalVolume)
-            volume = normalVolume
+            try await controller.setVolume(resting)
+            volume = resting
         }
+        // Back to normal: the player owns its volume again.
+        try await controller.releaseVolume()
     }
 
     /// The normal volume changed (Settings › Sound). If the music is playing untouched, move to it now.
@@ -216,7 +239,8 @@ final class PlayerSession {
         let controller = self.controller
         volumeTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(150))   // let the slider settle
-            guard let self, !Task.isCancelled, hold == .none, !isFading, playback == .playing else { return }
+            // YouTube Music keeps its own volume (its slider), so Mauna's normal volume doesn't apply there.
+            guard let self, !Task.isCancelled, !player.isBrowser, hold == .none, !isFading, playback == .playing else { return }
             let target = normalVolume
             try? await controller.setVolume(target)
             volume = target
@@ -240,8 +264,11 @@ final class PlayerSession {
                 guard let self, controller.player == self.player else { return }
                 self.playback = state
                 if !self.isFading { self.volume = volume }
+                if self.issue?.needsSetup == true { self.issue = nil }
             } catch ScriptError.notAuthorized {
                 self?.issue = .needsPermission(controller.player)
+            } catch ScriptError.javaScriptOff {
+                self?.issue = .needsBrowserSetup(controller.player)
             } catch {
                 // Not running or slow to answer: the notifications will catch up.
             }
@@ -263,6 +290,10 @@ final class PlayerSession {
                 // A newer action took over. It starts from the volume playing now.
             } catch ScriptError.notAuthorized {
                 self.issue = .needsPermission(controller.player)
+                self.hold = .none
+                self.manualHold = .none
+            } catch ScriptError.javaScriptOff {
+                self.issue = .needsBrowserSetup(controller.player)
                 self.hold = .none
                 self.manualHold = .none
             } catch ScriptError.notRunning {
@@ -293,21 +324,54 @@ final class PlayerSession {
         manualHold = .none
     }
 
+    /// A new playback state from the player (notification or browser check).
+    private func received(_ state: PlaybackState) {
+        // Mauna finished pausing, and now it plays: the user pressed play. Respect it.
+        if hold == .paused, playback == .paused, state == .playing, !isFading {
+            hold = .none
+            manualHold = .none
+            onUserOverride?()
+        }
+        playback = state
+    }
+
+    /// Browsers post no playback notifications, so YouTube Music is checked every 2 s while the browser runs.
+    private func startPolling() {
+        poller?.cancel()
+        guard player.isBrowser else { return }
+        poller = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard let self, !Task.isCancelled else { return }
+                guard self.player.isRunning else { continue }
+                let controller = self.controller
+                do {
+                    let state = try await controller.state()
+                    guard controller.player == self.player else { continue }
+                    self.isRunning = true
+                    self.received(state)
+                    if self.issue?.needsSetup == true { self.issue = nil }
+                } catch ScriptError.javaScriptOff {
+                    self.issue = .needsBrowserSetup(controller.player)
+                } catch ScriptError.notAuthorized {
+                    self.issue = .needsPermission(controller.player)
+                } catch {
+                    // Slow or busy: try again next time.
+                }
+            }
+        }
+    }
+
     private func observe() {
         let distributed = DistributedNotificationCenter.default()
         for id in PlayerID.allCases {
-            observers.append(distributed.addObserver(forName: id.playbackNotification, object: nil, queue: .main) { [weak self] note in
+            guard let name = id.playbackNotification else { continue }
+            observers.append(distributed.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let raw = note.userInfo?["Player State"] as? String
                 MainActor.assumeIsolated {
                     guard let self, self.player == id, let raw, let state = PlaybackState(scriptValue: raw) else { return }
                     self.isRunning = true
-                    // Mauna finished pausing, and now it plays: the user pressed play. Respect it.
-                    if self.hold == .paused, self.playback == .paused, state == .playing, !self.isFading {
-                        self.hold = .none
-                        self.manualHold = .none
-                        self.onUserOverride?()
-                    }
-                    self.playback = state
+                    self.received(state)
                 }
             })
         }
