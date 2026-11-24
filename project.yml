@@ -26,12 +26,19 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    exactVersion: 3.1.0   # global shortcut without the Accessibility permission
+
 targets:
   Mauna:
     type: application
     platform: macOS
     sources:
       - path: Mauna
+    dependencies:
+      - package: KeyboardShortcuts
     scheme:
       testTargets: [MaunaTests]
     info:
@@ -65,6 +72,7 @@ targets:
       - path: MaunaTests
       - path: Mauna/Rules/Rule.swift
       - path: Mauna/Rules/RuleEngine.swift
+      - path: Mauna/Rules/QuietShortcut.swift
       - path: Mauna/DesignSystem/AudioTiming.swift
     settings:
       base:

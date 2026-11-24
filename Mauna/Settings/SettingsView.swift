@@ -1,19 +1,28 @@
+import KeyboardShortcuts
 import SwiftUI
 
-/// Settings window. Placeholder until Phase 4 adds the Rules, Sound and General tabs.
+/// Settings window. Phase 3: the quiet shortcut. Rules, Sound and the full General tab arrive in Phase 4.
 struct SettingsView: View {
+    @AppStorage(QuietShortcut.Mode.storageKey) private var mode: QuietShortcut.Mode = .pause
+
     var body: some View {
-        VStack(spacing: Spacing.s) {
-            WaveGlyphView(state: .playing, size: 36)
-                .foregroundStyle(.accentFill)
-            Text("Settings come in a later build")
-                .font(.headline)
-            Text("Rules, sound and shortcut options will live here.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        Form {
+            Section {
+                KeyboardShortcuts.Recorder("Quiet shortcut", name: .quietMusic)
+                Picker("When pressed", selection: $mode) {
+                    ForEach(QuietShortcut.Mode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+            } footer: {
+                Text("Press once to quiet your music from any app, press again to bring it back.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(Spacing.xxxl)
+        .formStyle(.grouped)
         .frame(width: Size.settingsWindowWidth)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

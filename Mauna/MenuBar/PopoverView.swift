@@ -23,7 +23,7 @@ struct PopoverView: View {
 
             #if DEBUG
             Divider().overlay(.hairline)
-            PlayerDebugPanel(session: model.session)
+            PlayerDebugPanel(model: model, session: model.session)
                 .padding(Spacing.m)
             #endif
 
@@ -103,6 +103,7 @@ private struct PermissionNotice: View {
 #if DEBUG
 /// Phase 1 test controls. Replaced by rules and the quiet shortcut in later phases.
 private struct PlayerDebugPanel: View {
+    let model: AppModel
     @Bindable var session: PlayerSession
 
     var body: some View {
@@ -128,6 +129,9 @@ private struct PlayerDebugPanel: View {
                     .disabled(session.hold != .none)
                 Button("Restore") { session.release() }
                     .disabled(session.hold == .none)
+                Spacer()
+                // Same as the shortcut. The real Quiet now button arrives with the Phase 4 popover.
+                Button("Quiet now ⌃⌥Space") { model.quietPressed() }
             }
             .disabled(!session.isRunning)
 

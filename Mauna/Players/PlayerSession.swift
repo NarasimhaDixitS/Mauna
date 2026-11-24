@@ -95,6 +95,14 @@ final class PlayerSession {
         resolve(animated: animated)
     }
 
+    /// Undo only your own quiet (the shortcut's second press). Rules still in charge keep the music
+    /// where they want it: if TextEdit paused it, it stays paused.
+    func releaseManual() {
+        guard manualHold != .none else { return }
+        manualHold = .none
+        resolve()
+    }
+
     private func resolve(animated: Bool = true) {
         apply(max(manualHold, ruleHold), animated: animated)
     }
