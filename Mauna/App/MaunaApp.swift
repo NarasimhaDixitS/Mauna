@@ -4,6 +4,15 @@ import SwiftUI
 struct MaunaApp: App {
     @State private var model = AppModel()
 
+    #if DEBUG
+    init() {
+        // Debug only: MAUNA_SNAPSHOT=/path.png renders the popover to an image and quits, for design review.
+        if let path = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] {
+            DesignSnapshot.render(to: path)
+        }
+    }
+    #endif
+
     var body: some Scene {
         MenuBarExtra {
             PopoverView(model: model)
@@ -15,7 +24,7 @@ struct MaunaApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView()
+            SettingsView(model: model)
         }
     }
 }

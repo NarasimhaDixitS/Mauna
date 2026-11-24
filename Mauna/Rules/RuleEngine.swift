@@ -83,13 +83,19 @@ nonisolated struct RuleEngine: Sendable {
     }
 
     /// Replaces the rule list, keeping the state of rules that still exist.
-    mutating func setRules(_ newRules: [Rule], snapshot: AppSnapshot, now: TimeInterval) {
+    /// Rules in `activatingNow` skip the debounce: you just asked for them by hand ("Pause until Safari quits").
+    mutating func setRules(_ newRules: [Rule], snapshot: AppSnapshot, now: TimeInterval, activatingNow: Set<Rule.ID> = []) {
         let ids = Set(newRules.map(\.id))
         rules = newRules
         active.formIntersection(ids)
         overridden.formIntersection(ids)
         pending = pending.filter { ids.contains($0.key) }
         update(snapshot, now: now)
+        guard !isAway else { return }
+        for id in activatingNow where triggered.contains(id) && pending[id] != nil {
+            pending[id] = nil
+            active.insert(id)
+        }
     }
 
     // MARK: Outputs

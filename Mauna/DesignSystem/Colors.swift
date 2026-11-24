@@ -21,6 +21,18 @@ extension ShapeStyle where Self == Color {
     /// 0.5pt separators inside groups only.
     static var hairline: Color { Color(light: (0x000000, 0.06), dark: (0xFFFFFF, 0.07)) }
 
+    /// Glyph tile at rest, badge fill, track background.
+    static var well: Color { Color(light: (0x000000, 0.06), dark: (0xFFFFFF, 0.08)) }
+
+    /// Row hover and the volume well inside the popover.
+    static var popRow: Color { Color(light: (0x000000, 0.045), dark: (0xFFFFFF, 0.07)) }
+
+    /// Secondary button face.
+    static var control: Color { Color(light: (0xFFFFFF, 1), dark: (0x2E2E33, 1)) }
+
+    /// Settings card face. Sits on the window background with ring + soft shadow.
+    static var card: Color { Color(light: (0xFFFFFF, 1), dark: (0xFFFFFF, 0.05)) }
+
     /// Permission missing, YouTube Music setup incomplete.
     static var needsSetup: Color { Color(nsColor: .systemOrange) }
 
@@ -52,4 +64,35 @@ extension NSColor {
             alpha: alpha
         )
     }
+}
+
+@MainActor
+extension LinearGradient {
+    /// Accent surfaces get light from the top: a subtle gradient instead of one flat colour.
+    static var accentFill: LinearGradient {
+        LinearGradient(
+            colors: [Color(light: 0x5B56D8, dark: 0x7672EF), Color(light: 0x4540B8, dark: 0x5A55D6)],
+            startPoint: .top, endPoint: .bottom
+        )
+    }
+
+    static var accentPressed: LinearGradient {
+        LinearGradient(
+            colors: [Color(light: 0x4C47C4, dark: 0x6762E8), Color(light: 0x3B36A0, dark: 0x4E49C8)],
+            startPoint: .top, endPoint: .bottom
+        )
+    }
+
+    /// Active rule row: the tint fades out to the right, so the row glows from the icon.
+    static var accentRowTint: LinearGradient {
+        LinearGradient(
+            colors: [Color(light: (0x4C47C4, 0.13), dark: (0x8C88FF, 0.20)), Color(light: (0x4C47C4, 0.04), dark: (0x8C88FF, 0.06))],
+            startPoint: .leading, endPoint: .trailing
+        )
+    }
+}
+
+extension Color {
+    /// Coloured shadow under accent surfaces.
+    static var accentShadow: Color { Color(light: (0x2E2890, 0.35), dark: (0x000000, 0.5)) }
 }

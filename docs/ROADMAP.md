@@ -35,7 +35,8 @@ The rule engine is plain Swift with unit tests, so edge cases (debounce, overlap
 | Project file | XcodeGen `project.yml` (readable, no `.pbxproj` merge pain). Needs `brew install xcodegen` | Phase 0 |
 | Minimum macOS | 14.2. The Core Audio calls the mic trigger needs work best from 14.2 | Phase 0 |
 | Distribution | Direct, unsandboxed, notarized DMG first. App Store later, if at all | Phase 1 |
-| Master switch placement, live volume row | Decide on the real popover, not the HTML mock | Phase 4 |
+| Master switch placement | In the header, like Wi-Fi in Control Center. Quiet now is the one prominent button. Off means rules rest; Quiet now still works | Phase 4 |
+| Live volume row | Kept, as text only (player icon, name, "70%" or "Silent"). It shows the fade happening. The slider lives in Settings › Sound | Phase 4 |
 | Two rules at once | The strongest wins (pause beats lower). The status line names it: "Paused for Chess + 1" | Phase 2 |
 | What "In front" means | The app you're using (its name in the menu bar), whatever its window size. Split View: only the app you clicked last | Phase 2 |
 | Split View sharing a rule | No. macOS has no public way to tell which apps are paired; the quick rule covers it | Phase 2 |

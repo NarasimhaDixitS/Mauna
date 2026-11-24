@@ -9,13 +9,14 @@ Based on Emil Kowalski's design-engineering rules ([emilkowalski/skills](https:/
 ## Principles (higher wins)
 
 1. **The glyph says what you hear. The text says why.** Full / low / flat bars = sound state. Status line = cause ("Paused for Zoom"). Never go quiet without a visible reason.
-2. **Part of macOS.** System font, system materials, native controls with `.tint` only. Never restyle a control macOS already draws.
+2. **Part of macOS, with depth.** System font and materials. Keep native behaviour (keyboard, VoiceOver, menus, switches, segmented controls). Mauna's own surfaces (Quiet now, the glyph tile, the player card, Settings cards) get light from the top: a subtle accent gradient, a coloured shadow, a bright 0.5pt top edge. Built in `DesignSystem/Components.swift`.
 3. **Motion only when it means something.** State, feedback or origin. Frequent actions are instant. Nothing loops.
 4. **Handle edge cases invisibly.** Debounce, overrides, short sounds, overlapping rules — correct and unseen.
 
 ## Colour
 
-- One accent (dusk indigo). It means "Mauna is acting now", plus the one primary button per view.
+- One accent (dusk indigo). It means "Mauna is acting now", plus the one primary button per view. Accent surfaces use the top-lit gradient (`LinearGradient.accentFill`), never a flat fill. A disabled primary button turns neutral, never pale lavender.
+- Trigger badges are quiet at rest (tertiary symbol + word, no pill) and gain an accent pill only while that rule is in charge.
 - Neutrals are macOS semantic colours. Never hard-code greys in Swift.
 - No green for playing, no red for paused, no colour-coded trigger types. Triggers differ by glyph + word.
 - Orange = needs setup. Red = something failed. Nothing else.
@@ -60,6 +61,10 @@ Decide in this order: **should it animate → why → easing → duration.**
 - Fade out 1.2 s, fade in 1.8 s, equal-power curves.
 - Every fade starts from the volume playing now; always end at the saved normal volume.
 - Debounce 1.5 s; ignore shortcut presses < 300 ms apart; ignore sounds < 3 s.
+
+## Checking the build
+
+- Debug builds render the popover to a PNG: `MAUNA_SNAPSHOT=/path.png` (add `MAUNA_SNAPSHOT_DARK=1` for dark). Compare light and dark with `design-system.html` before handing over.
 
 ## Icon
 

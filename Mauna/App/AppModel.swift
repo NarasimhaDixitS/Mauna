@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import KeyboardShortcuts
 import Observation
 
@@ -17,7 +17,7 @@ final class AppModel {
     init() {
         let session = PlayerSession()
         self.session = session
-        self.rules = RuleCoordinator(session: session, rules: Rule.phase2Samples)
+        self.rules = RuleCoordinator(session: session)
         KeyboardShortcuts.onKeyDown(for: .quietMusic) { [weak self] in self?.quietPressed() }
     }
 
@@ -39,6 +39,15 @@ final class AppModel {
         }
     }
 
+    /// True while your own quiet is in charge: Quiet now becomes "Bring music back".
+    var isQuietedByYou: Bool { session.manualHold != .none }
+
+    /// Nothing to quiet and nothing to bring back: Quiet now is disabled. It never starts music.
+    var canQuiet: Bool { isQuietedByYou || (session.isRunning && session.playback == .playing) }
+
+    /// "⌃⌥Space", or nil if the user cleared the shortcut.
+    var shortcutText: String? { KeyboardShortcuts.Name.quietMusic.shortcut?.description }
+
     private func showStillHeld() {
         guard let cause = ruleCauseName else { return }
         let verb = session.ruleHold == .paused ? "paused" : "lowered"
@@ -55,12 +64,16 @@ final class AppModel {
         }
     }
 
+    // MARK: Status
+
     /// What the user hears right now. The glyph says what you hear; the text says why.
     var glyphState: GlyphState {
         switch session.hold {
         case .paused: return .paused
         case .ducked: return .ducked
-        case .none:   return session.playback == .playing ? .playing : .paused
+        case .none:
+            if !rules.isEnabled { return .off }
+            return session.playback == .playing ? .playing : .paused
         }
     }
 
@@ -72,6 +85,7 @@ final class AppModel {
         case .paused: return ruleCause.map { "Paused for \($0)" } ?? "Quieted by you"
         case .ducked: return ruleCause.map { "Lowered for \($0)" } ?? "Quieted by you"
         case .none:
+            if !rules.isEnabled { return "Mauna is off" }
             guard session.isRunning else { return "\(name) isn't open" }
             switch session.playback {
             case .playing: return "Playing on \(name)"
@@ -81,12 +95,29 @@ final class AppModel {
         }
     }
 
-    /// Status sub-line.
+    /// Status sub-line: what happens next.
     var detailLine: String {
         if rules.isAway { return "Holding while you're away" }
-        if rules.isWaiting { return "Waiting \(AudioTiming.debounce.formatted()) s" }
-        let count = rules.rules.filter(\.isEnabled).count
-        return count == 1 ? "Watching 1 app" : "Watching \(count) apps"
+        if session.hold != .none {
+            if ruleCause == nil {
+                return shortcutText.map { "Press \($0) to bring it back" } ?? "Press Quiet now to bring it back"
+            }
+            if let first = rules.decision.causes.first {
+                let back = session.hold == .paused ? "Resumes" : "Back to normal"
+                switch first.trigger {
+                case .inFront: return "\(back) when you leave \(first.appName)"
+                case .running: return "\(back) when \(first.appName) quits"
+                case .usingMicOrSound: return "\(back) when the call ends"
+                }
+            }
+        }
+        if !rules.isEnabled { return "Rules are off. Quiet now still works." }
+        let count = rules.allRules.filter(\.isEnabled).count
+        switch count {
+        case 0: return "No quiet apps yet"
+        case 1: return "Watching 1 app"
+        default: return "Watching \(count) apps"
+        }
     }
 
     /// True while Mauna is acting on the music.
@@ -104,4 +135,25 @@ final class AppModel {
         guard let first = causes.first else { return nil }
         return causes.count > 1 ? "\(first.appName) + \(causes.count - 1)" : first.appName
     }
+
+    // MARK: Quick rule
+
+    struct FrontApp: Equatable {
+        let bundleID: String
+        let name: String
+    }
+
+    /// The app in front, when it has no rule yet: the popover offers "Pause until it quits".
+    var quickRuleCandidate: FrontApp? {
+        guard rules.isEnabled, let id = rules.frontmost, !rules.hasRule(for: id),
+              !Self.neverQuiet.contains(id), !PlayerID.allCases.contains(where: { $0.bundleID == id })
+        else { return nil }
+        // Only real apps with a Dock icon, never background helpers.
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: id).first,
+              app.activationPolicy == .regular else { return nil }
+        return FrontApp(bundleID: id, name: app.localizedName ?? id)
+    }
+
+    /// Apps that never quit, so "until it quits" would mean forever.
+    private static let neverQuiet: Set<String> = ["com.apple.finder", "com.apple.dock", "com.apple.systemuiserver"]
 }

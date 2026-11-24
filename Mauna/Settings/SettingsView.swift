@@ -1,31 +1,70 @@
-import KeyboardShortcuts
 import SwiftUI
 
-/// Settings window. Phase 3: the quiet shortcut. Rules, Sound and the full General tab arrive in Phase 4.
+enum SettingsTab: String, CaseIterable {
+    case players, rules, sound, general, debug
+    static let storageKey = "settingsTab"
+}
+
+/// Settings window: standard macOS toolbar tabs (design-system.html › Screens).
 struct SettingsView: View {
-    @AppStorage(QuietShortcut.Mode.storageKey) private var mode: QuietShortcut.Mode = .pause
+    let model: AppModel
+    @AppStorage(SettingsTab.storageKey) private var tab: SettingsTab = .rules
+
+    var body: some View {
+        TabView(selection: $tab) {
+            PlayersSettings(session: model.session)
+                .tabItem { Label("Players", systemImage: "music.note") }
+                .tag(SettingsTab.players)
+            RulesSettings(coordinator: model.rules)
+                .tabItem { Label("Rules", systemImage: "list.bullet") }
+                .tag(SettingsTab.rules)
+            SoundSettings(session: model.session)
+                .tabItem { Label("Sound", systemImage: "speaker.wave.2") }
+                .tag(SettingsTab.sound)
+            GeneralSettings()
+                .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsTab.general)
+            #if DEBUG
+            DebugSettings(session: model.session)
+                .tabItem { Label("Debug", systemImage: "ladybug") }
+                .tag(SettingsTab.debug)
+            #endif
+        }
+        .frame(width: Size.settingsWindowWidth)
+    }
+}
+
+#if DEBUG
+/// Phase 1 test controls, kept for testing fades. Only debug builds have this tab.
+private struct DebugSettings: View {
+    let session: PlayerSession
 
     var body: some View {
         Form {
             Section {
-                KeyboardShortcuts.Recorder("Quiet shortcut", name: .quietMusic)
-                Picker("When pressed", selection: $mode) {
-                    ForEach(QuietShortcut.Mode.allCases) { Text($0.title).tag($0) }
+                HStack(spacing: Spacing.s) {
+                    Button("Pause") { session.quiet(.pause) }
+                        .disabled(session.hold == .paused)
+                    Button("Lower") { session.quiet(.duck) }
+                        .disabled(session.hold != .none)
+                    Button("Restore") { session.release() }
+                        .disabled(session.hold == .none)
                 }
-                .pickerStyle(.segmented)
-                .fixedSize()
+                .disabled(!session.isRunning)
+                LabeledContent("Hold", value: "\(session.hold)")
+                LabeledContent("Rule hold", value: "\(session.ruleHold)")
+                LabeledContent("Your hold", value: "\(session.manualHold)")
+                if case .failed(let message) = session.issue {
+                    Text(message).foregroundStyle(.failed)
+                }
             } footer: {
-                Text("Press once to quiet your music from any app, press again to bring it back.")
+                Text("Restore works like pressing play: rules in charge step aside until their trigger ends.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-        .frame(width: Size.settingsWindowWidth)
         .fixedSize(horizontal: false, vertical: true)
     }
 }
-
-#Preview {
-    SettingsView()
-}
+#endif

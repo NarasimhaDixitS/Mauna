@@ -37,9 +37,21 @@ final class PlayerSession {
     private(set) var issue: Issue?
 
     /// The volume music plays at the rest of the time. Fades return here.
-    var normalVolume: Double = AudioTiming.normalVolume
+    var normalVolume: Double = PlayerSession.saved(Keys.normalVolume, AudioTiming.normalVolume) {
+        didSet {
+            UserDefaults.standard.set(normalVolume, forKey: Keys.normalVolume)
+            applyNormalVolumeSoon()
+        }
+    }
     /// Ducked volume as a share of the normal volume.
-    var duckLevel: Double = AudioTiming.duckLevel
+    var duckLevel: Double = PlayerSession.saved(Keys.duckLevel, AudioTiming.duckLevel) {
+        didSet { UserDefaults.standard.set(duckLevel, forKey: Keys.duckLevel) }
+    }
+    /// Fade-out time. Fading back in takes 1.5× as long: a slower return feels kinder.
+    var fadeTime: TimeInterval = PlayerSession.saved(Keys.fadeTime, AudioTiming.fadeOut) {
+        didSet { UserDefaults.standard.set(fadeTime, forKey: Keys.fadeTime) }
+    }
+    private var fadeInTime: TimeInterval { fadeTime * AudioTiming.fadeIn / AudioTiming.fadeOut }
 
     /// Called when the user presses play while Mauna has the music paused.
     var onUserOverride: (() -> Void)?
@@ -49,9 +61,22 @@ final class PlayerSession {
     private var controller: any PlayerController
     private var work: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
+    private var volumeTask: Task<Void, Never>?
+
+    private enum Keys {
+        static let normalVolume = "normalVolume"
+        static let duckLevel = "duckLevel"
+        static let fadeTime = "fadeTime"
+        static let player = "player"
+    }
+
+    private static func saved(_ key: String, _ fallback: Double) -> Double {
+        UserDefaults.standard.object(forKey: key) as? Double ?? fallback
+    }
 
     init(player: PlayerID? = nil) {
-        let chosen = player ?? PlayerID.installed.first(where: \.isRunning) ?? PlayerID.installed.first ?? .appleMusic
+        let savedPlayer = UserDefaults.standard.string(forKey: Keys.player).flatMap(PlayerID.init(rawValue:))
+        let chosen = player ?? savedPlayer ?? PlayerID.installed.first(where: \.isRunning) ?? PlayerID.installed.first ?? .appleMusic
         self.player = chosen
         self.controller = ScriptablePlayer(player: chosen)
         observe()
@@ -63,6 +88,7 @@ final class PlayerSession {
         manualHold = .none
         apply(.none, animated: false)
         self.player = player
+        UserDefaults.standard.set(player.rawValue, forKey: Keys.player)
         controller = ScriptablePlayer(player: player)
         playback = nil
         volume = nil
@@ -138,7 +164,7 @@ final class PlayerSession {
     private func fadeOutAndPause(_ controller: any PlayerController, state: PlaybackState) async throws {
         guard state == .playing else { return }
         let start = try await controller.volume()
-        try await fade(controller, from: start, to: 0, full: AudioTiming.fadeOut)
+        try await fade(controller, from: start, to: 0, full: fadeTime)
         try await controller.pause()
         // Leave the player at the normal volume, so pressing play by hand isn't silent.
         try await controller.setVolume(normalVolume)
@@ -151,12 +177,12 @@ final class PlayerSession {
         switch (previousHold, state) {
         case (_, .playing):
             let start = try await controller.volume()
-            try await fade(controller, from: start, to: target, full: AudioTiming.fadeOut)
+            try await fade(controller, from: start, to: target, full: fadeTime)
         case (.paused, .paused):
             try await controller.setVolume(0)
             try await controller.play()
             playback = .playing
-            try await fade(controller, from: 0, to: target, full: AudioTiming.fadeIn)
+            try await fade(controller, from: 0, to: target, full: fadeInTime)
         default:
             break
         }
@@ -169,18 +195,31 @@ final class PlayerSession {
             try await controller.play()
             playback = .playing
             if animated {
-                try await fade(controller, from: 0, to: normalVolume, full: AudioTiming.fadeIn)
+                try await fade(controller, from: 0, to: normalVolume, full: fadeInTime)
             } else {
                 try await controller.setVolume(normalVolume)
             }
         case (_, .playing):
             // Mid fade-out, ducked, or the user already pressed play: fade up from where it is now.
             let start = try await controller.volume()
-            try await fade(controller, from: start, to: normalVolume, full: AudioTiming.fadeIn)
+            try await fade(controller, from: start, to: normalVolume, full: fadeInTime)
         default:
             // Stopped, or the user paused it: leave playback alone, just restore the volume.
             try await controller.setVolume(normalVolume)
             volume = normalVolume
+        }
+    }
+
+    /// The normal volume changed (Settings › Sound). If the music is playing untouched, move to it now.
+    private func applyNormalVolumeSoon() {
+        volumeTask?.cancel()
+        let controller = self.controller
+        volumeTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))   // let the slider settle
+            guard let self, !Task.isCancelled, hold == .none, !isFading, playback == .playing else { return }
+            let target = normalVolume
+            try? await controller.setVolume(target)
+            volume = target
         }
     }
 

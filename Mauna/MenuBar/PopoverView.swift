@@ -1,61 +1,60 @@
 import SwiftUI
 
-/// The popover under the menu bar icon. Phase 1: live status header, a debug player panel, and the footer.
-/// The real switch, Quiet now and rules list arrive in Phase 4.
+/// The popover under the menu bar icon. Built to design-system.html › popover, measure for measure:
+/// 8pt outer padding; header (34pt glyph tile, status, switch); Quiet now; the volume well;
+/// a hairline; Rules; a hairline; the footer.
 struct PopoverView: View {
-    @Bindable var model: AppModel
+    let model: AppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-                .padding(Spacing.m)
+                .padding(.horizontal, 6)
+                .padding(.top, 6)
+                .padding(.bottom, 12)
+
+            QuietNowButton(model: model)
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
+
+            PlayerCard(session: model.session)
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
 
             if case .needsPermission(let player) = model.session.issue {
-                Divider().overlay(.hairline)
                 PermissionNotice(player: player)
-                    .padding(Spacing.m)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 8)
             }
 
-            Divider().overlay(.hairline)
-            RulesList(coordinator: model.rules)
-                .padding(.horizontal, Spacing.s)
-                .padding(.vertical, Spacing.s)
+            Hairline()
+            RulesList(model: model)
+            Hairline()
 
-            #if DEBUG
-            Divider().overlay(.hairline)
-            PlayerDebugPanel(model: model, session: model.session)
-                .padding(Spacing.m)
-            #endif
-
-            Divider().overlay(.hairline)
             footer
-                .padding(.horizontal, Spacing.m)
-                .padding(.vertical, Spacing.s)
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
         }
+        .padding(8)
         .frame(width: Size.popoverWidth)
         .onAppear { model.session.refresh() }
     }
 
     private var header: some View {
-        HStack(spacing: Spacing.m) {
-            // Accent fill only while Mauna is acting on the music.
-            WaveGlyphView(state: model.glyphState, size: 20)
-                .foregroundStyle(model.isActing ? .white : .primary)
-                .frame(width: Size.statusGlyphTile, height: Size.statusGlyphTile)
-                .background(
-                    RoundedRectangle(cornerRadius: Radius.glyphTile, style: .continuous)
-                        .fill(model.isActing ? AnyShapeStyle(.accentFill) : AnyShapeStyle(.quaternary))
-                )
-                .animation(.maunaEaseOut(MotionDuration.rowHighlight), value: model.isActing)
+        HStack(spacing: 12) {
+            GlyphTile(state: model.glyphState, isActing: model.isActing)
 
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(model.statusLine)
-                    .font(.headline)
+                    .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(1)
                     .id(model.statusLine)
                     .transition(.blurCrossfade)
                 Text(model.detailLine)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                     .id(model.detailLine)
                     .transition(.blurCrossfade)
             }
@@ -63,18 +62,134 @@ struct PopoverView: View {
             .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: model.detailLine)
 
             Spacer(minLength: 0)
+
+            // Master switch in the header, like Wi-Fi in Control Center. Native control, accent tint.
+            Toggle("Mauna", isOn: Binding(get: { model.rules.isEnabled }, set: { model.rules.isEnabled = $0 }))
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .tint(.accentFill)
+                .accessibilityLabel("Mauna on")
         }
     }
 
     private var footer: some View {
         HStack {
-            SettingsButton()
+            SettingsButton(title: "Settings…", symbol: "gearshape")
+                .keyboardShortcut(",")
+                .foregroundStyle(.secondary)
             Spacer()
-            Button("Quit Mauna") { NSApplication.shared.terminate(nil) }
+            Button("Quit") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
+                .foregroundStyle(.tertiary)
         }
-        .buttonStyle(.borderless)
-        .foregroundStyle(.primary)
+        .font(.callout)
+        .buttonStyle(PlainTextButtonStyle())
+    }
+}
+
+/// `.btn.primary`, full width: does exactly what the shortcut does. The key hint sits beside the label at 70%.
+private struct QuietNowButton: View {
+    let model: AppModel
+
+    var body: some View {
+        Button {
+            model.quietPressed()
+        } label: {
+            HStack(spacing: 7) {
+                Text(model.isQuietedByYou ? "Bring music back" : "Quiet now")
+                if let shortcut = model.shortcutText {
+                    Text(shortcut)
+                        .font(.subheadline)
+                        .opacity(0.7)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.maunaPrimary)
+        .disabled(!model.canQuiet)
+    }
+}
+
+/// The status hero: 40pt tile. At rest a quiet well; while Mauna acts, an indigo gradient with a soft glow.
+private struct GlyphTile: View {
+    let state: GlyphState
+    let isActing: Bool
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+        WaveGlyphView(state: state, size: 22)
+            .foregroundStyle(isActing ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+            .frame(width: 40, height: 40)
+            .background {
+                ZStack {
+                    shape.fill(.well)
+                    shape.fill(LinearGradient.accentFill)
+                        .shadow(color: .accentShadow, radius: 6, y: 2)
+                        .opacity(isActing ? 1 : 0)
+                }
+            }
+            .overlay {
+                shape.strokeBorder(
+                    LinearGradient(colors: [.white.opacity(isActing ? 0.35 : 0.0), .clear], startPoint: .top, endPoint: .center),
+                    lineWidth: 0.5
+                )
+            }
+            .animation(.maunaEaseOut(0.25), value: isActing)
+    }
+}
+
+/// The player: its real icon, what Mauna is doing to it, and the normal volume you can drag.
+/// Dragging sets the level music always returns to, and moves the player now if it's playing untouched.
+private struct PlayerCard: View {
+    @Bindable var session: PlayerSession
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                AppIconView(bundleID: session.player.bundleID, size: 28)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(session.player.displayName)
+                        .font(.body.weight(.medium))
+                    Text(stateText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .id(stateText)
+                        .transition(.blurCrossfade)
+                }
+                .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: stateText)
+                Spacer(minLength: 0)
+                Text("\(Int((session.normalVolume * 100).rounded()))%")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.fill")
+                MaunaSlider(value: $session.normalVolume, range: 0.1...1, step: 0.01)
+                    .accessibilityLabel("Normal volume")
+                Image(systemName: "speaker.wave.3.fill")
+            }
+            .font(.system(size: 10))
+            .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.popRow))
+    }
+
+    private var stateText: String {
+        guard session.isRunning else { return "Not open" }
+        switch session.hold {
+        case .paused: return "Paused by Mauna"
+        case .ducked: return "Lowered by Mauna"
+        case .none:
+            switch session.playback {
+            case .playing: return "Playing"
+            case .paused:  return "Paused"
+            case .stopped, nil: return "Nothing playing"
+            }
+        }
     }
 }
 
@@ -96,92 +211,35 @@ private struct PermissionNotice: View {
                     NSWorkspace.shared.open(url)
                 }
             }
+            .buttonStyle(.maunaSmall)
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.orange.opacity(0.1)))
     }
 }
 
-#if DEBUG
-/// Phase 1 test controls. Replaced by rules and the quiet shortcut in later phases.
-private struct PlayerDebugPanel: View {
-    let model: AppModel
-    @Bindable var session: PlayerSession
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s) {
-            HStack {
-                Text("Player test (debug)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if PlayerID.installed.count > 1 {
-                    Picker("Player", selection: Binding(get: { session.player }, set: { session.select($0) })) {
-                        ForEach(PlayerID.installed) { Text($0.displayName).tag($0) }
-                    }
-                    .labelsHidden()
-                    .fixedSize()
-                }
-            }
-
-            HStack(spacing: Spacing.s) {
-                Button("Pause") { session.quiet(.pause) }
-                    .disabled(session.hold == .paused)
-                Button("Lower") { session.quiet(.duck) }
-                    .disabled(session.hold != .none)
-                Button("Restore") { session.release() }
-                    .disabled(session.hold == .none)
-                Spacer()
-                // Same as the shortcut. The real Quiet now button arrives with the Phase 4 popover.
-                Button("Quiet now ⌃⌥Space") { model.quietPressed() }
-            }
-            .disabled(!session.isRunning)
-
-            // What you hear. While paused the player is silent, even though its own
-            // volume is already back at the normal level for when it plays again.
-            LabeledContent("You hear") {
-                Text(heardVolume)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: heardVolume)
-            }
-            .font(.callout)
-
-            LabeledContent("Normal volume") {
-                HStack {
-                    Slider(value: $session.normalVolume, in: 0.1...1, step: 0.05)
-                        .frame(width: 120)
-                    Text("\(Int((session.normalVolume * 100).rounded()))%")
-                        .monospacedDigit()
-                        .frame(width: 36, alignment: .trailing)
-                }
-            }
-            .font(.callout)
-
-            if case .failed(let message) = session.issue {
-                Text(message).font(.callout).foregroundStyle(.failed)
-            }
-        }
-    }
-
-    private var heardVolume: String {
-        guard session.isRunning, let volume = session.volume else { return "–" }
-        let percent = "\(Int((volume * 100).rounded()))%"
-        // Mid-fade the player is still playing, so show the live number until it actually pauses.
-        if session.playback != .playing && !session.isFading { return "Silent · plays at \(percent)" }
-        return percent
-    }
-}
-#endif
-
-/// Opens Settings and brings it to the front. Mauna has no Dock icon, so it must activate itself first.
-private struct SettingsButton: View {
+/// Opens Settings, optionally at a tab, and brings it to the front.
+/// Mauna has no Dock icon, so it must activate itself first.
+struct SettingsButton: View {
+    let title: String
+    var symbol: String?
+    var tab: SettingsTab?
     @Environment(\.openSettings) private var openSettings
+    @AppStorage(SettingsTab.storageKey) private var selectedTab: SettingsTab = .rules
 
     var body: some View {
-        Button("Settings…") {
+        Button {
+            if let tab { selectedTab = tab }
             NSApplication.shared.activate()
             openSettings()
+        } label: {
+            if let symbol {
+                Label(title, systemImage: symbol)
+            } else {
+                Text(title)
+            }
         }
-        .keyboardShortcut(",")
     }
 }
 

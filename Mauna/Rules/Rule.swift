@@ -47,6 +47,36 @@ nonisolated struct Rule: Identifiable, Codable, Hashable, Sendable {
     var isEnabled = true
 }
 
+extension Rule {
+    /// The triggers v1 offers. "Using mic or sound" arrives in v1.1.
+    static let availableTriggers: [Trigger] = [.inFront, .running]
+
+    /// Call apps, until the mic trigger arrives in v1.1. "In front" would resume music mid-call.
+    static let callApps: Set<String> = [
+        "us.zoom.xos", "com.microsoft.teams", "com.microsoft.teams2", "com.apple.FaceTime",
+        "com.cisco.webexmeetingsapp", "Cisco-Systems.Spark", "com.webex.meetingmanager",
+    ]
+
+    /// Spec › Smart default: call apps and games get "Running", everything else "In front".
+    static func suggestedTrigger(bundleID: String, category: String?) -> Trigger {
+        if callApps.contains(bundleID) { return .running }
+        if let category, category.contains("games") { return .running }
+        return .inFront
+    }
+
+    /// One plain sentence for Settings › Rules: "Pauses while Xcode is in front".
+    var summary: String {
+        switch (trigger, action) {
+        case (.inFront, .ducked):         "Lowers music while \(appName) is in front"
+        case (.inFront, _):               "Pauses while \(appName) is in front"
+        case (.running, .ducked):         "Lowers music from launch until it quits"
+        case (.running, _):               "Pauses from launch until it quits"
+        case (.usingMicOrSound, .ducked): "Lowers music during calls, even if you switch apps"
+        case (.usingMicOrSound, _):       "Pauses during calls, even if you switch apps"
+        }
+    }
+}
+
 /// The facts the rule engine needs about other apps.
 nonisolated struct AppSnapshot: Equatable, Sendable {
     var frontmost: String?
