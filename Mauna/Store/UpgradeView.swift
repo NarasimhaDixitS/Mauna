@@ -6,7 +6,7 @@ import SwiftUI
 /// (Touch ID). No forms, no keys. After buying (or starting the trial) the window turns into a short
 /// "Welcome to Pro" moment: the tile lights up and the wave rises from ❙❙ to full.
 struct UpgradeView: View {
-    static let size = CGSize(width: 440, height: 640)
+    static let size = CGSize(width: 860, height: 520)
 
     let model: AppModel
     /// What you tried to use, so the pitch starts there.
@@ -42,8 +42,8 @@ struct UpgradeView: View {
 
     var body: some View {
         ZStack {
-            // A soft indigo light from the top, behind the tile.
-            RadialGradient(colors: [Color(hex: 0x6F6AF0).opacity(0.22), .clear],
+            // A soft gold light from the top, behind the tile.
+            RadialGradient(colors: [Color(hex: 0xE9C77B).opacity(0.18), .clear],
                            center: .init(x: 0.5, y: 0), startRadius: 0, endRadius: 360)
                 .ignoresSafeArea()
 
@@ -62,35 +62,63 @@ struct UpgradeView: View {
 
     // MARK: Pitch
 
+    /// Landscape: the offer on the left (price, lifetime, buttons), Free vs Pro on the right.
     private var pitch: some View {
-        VStack(spacing: 0) {
-            StatusTile(state: .playing, isActing: true, size: 64)
-                .padding(.top, 44)
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                StatusTile(state: .playing, isActing: true, size: 56)
+                Text("Mauna Pro")
+                    .font(.system(size: 28, weight: .bold))
+                    .padding(.top, 18)
+                Text(headline)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+                Spacer(minLength: 16)
+                priceBlock
+                actions
+                    .padding(.top, 16)
+            }
+            .frame(width: 300, alignment: .leading)
+            .padding(.leading, 40)
+            .padding(.trailing, 32)
+            .padding(.vertical, 36)
 
-            Text("Mauna Pro")
-                .font(.system(size: 26, weight: .bold))
-                .padding(.top, 18)
-            Text(headline)
-                .font(.body)
+            Rectangle().fill(.hairline).frame(width: 0.5).padding(.vertical, 32)
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Free and Pro, side by side")
+                    .font(.headline)
+                PlanComparison(highlight: feature)
+            }
+            .padding(.horizontal, 32)
+            .padding(.vertical, 40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    /// The price, large, with what it means: once, for life.
+    @ViewBuilder private var priceBlock: some View {
+        if store.plan == .pro {
+            HStack(spacing: 8) {
+                Text("You have Mauna Pro").font(.title3.weight(.semibold))
+                ProBadge()
+            }
+            Text("Lifetime. Every update included.")
+                .font(.callout)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 6)
-                .padding(.horizontal, 48)
-
-            VStack(spacing: 2) {
-                ForEach(ProFeature.allCases) { item in
-                    FeatureRow(feature: item, isHighlighted: item == feature)
+                .padding(.top, 2)
+        } else if let price = store.pro?.displayPrice ?? Self.samplePrice {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(price)
+                    .font(.system(size: 34, weight: .bold))
+                    .monospacedDigit()
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("once").font(.callout.weight(.semibold)).foregroundStyle(.accentText)
+                    Text("Lifetime · no subscription").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .padding(.top, 22)
-            .padding(.horizontal, 28)
-
-            Spacer(minLength: 16)
-
-            actions
-                .padding(.horizontal, 40)
-                .padding(.bottom, 22)
         }
     }
 
@@ -110,7 +138,11 @@ struct UpgradeView: View {
 
     @ViewBuilder private var actions: some View {
         VStack(spacing: 10) {
-            if store.isLoading && store.pro == nil {
+            if store.plan == .pro {
+                Button(action: close) { Text("Done").frame(maxWidth: .infinity) }
+                    .buttonStyle(.maunaPrimary)
+                    .keyboardShortcut(.defaultAction)
+            } else if store.isLoading && store.pro == nil && Self.samplePrice == nil {
                 Button {} label: {
                     ProgressView().controlSize(.small).frame(maxWidth: .infinity)
                 }
@@ -129,7 +161,8 @@ struct UpgradeView: View {
                 Text(fineprint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 Text("The App Store isn't answering right now.")
                     .font(.callout)
@@ -148,11 +181,14 @@ struct UpgradeView: View {
             }
 
             HStack(spacing: 16) {
-                Button(busy == .restoring ? "Restoring…" : "Restore Purchase") { Task { await restore() } }
-                    .disabled(busy != nil)
-                Text("·").foregroundStyle(.quaternary)
-                Button("Not Now", action: close)
-                    .keyboardShortcut(.cancelAction)
+                if store.plan != .pro {
+                    Button(busy == .restoring ? "Restoring…" : "Restore Purchase") { Task { await restore() } }
+                        .disabled(busy != nil)
+                    Text("·").foregroundStyle(.quaternary)
+                    Button("Not Now", action: close)
+                        .keyboardShortcut(.cancelAction)
+                }
+                Spacer(minLength: 0)
             }
             .buttonStyle(PlainTextButtonStyle())
             .font(.callout)
@@ -174,8 +210,8 @@ struct UpgradeView: View {
     @ViewBuilder private func buyButton(_ price: String, primary: Bool) -> some View {
         let button = Button { if let pro = store.pro { Task { await buy(pro, trial: false) } } } label: {
             HStack(spacing: 8) {
-                if busy == .buying { ProgressView().controlSize(.small).tint(primary ? .white : nil) }
-                Text("Unlock Pro · \(price)")
+                if busy == .buying { ProgressView().controlSize(.small).tint(primary ? Color.onAccent : nil) }
+                Text("Unlock Pro for Life · \(price)")
             }
             .frame(maxWidth: .infinity)
         }
@@ -190,7 +226,7 @@ struct UpgradeView: View {
     @ViewBuilder private func trialButton(primary: Bool) -> some View {
         let button = Button { if let trial = store.trial { Task { await buy(trial, trial: true) } } } label: {
             HStack(spacing: 8) {
-                if busy == .trial { ProgressView().controlSize(.small).tint(primary ? .white : nil) }
+                if busy == .trial { ProgressView().controlSize(.small).tint(primary ? Color.onAccent : nil) }
                 Text("Try Pro free for 14 days")
             }
             .frame(maxWidth: .infinity)
@@ -205,9 +241,9 @@ struct UpgradeView: View {
 
     private var fineprint: String {
         if let days = store.plan.trialDaysLeft(now: .now) {
-            return "You're on the free trial: \(days) \(days == 1 ? "day" : "days") left. One purchase, no subscription."
+            return "Your free trial: \(days) \(days == 1 ? "day" : "days") left. Pay once to keep Pro forever."
         }
-        return "One purchase, no subscription. Shared with your family through Family Sharing."
+        return "Pay once. Yours forever: no subscription, every update included."
     }
 
     private var trialEnd: Date? {
@@ -239,65 +275,6 @@ struct UpgradeView: View {
         case .unlocked: stage = .welcome(trial: false)
         case .cancelled, .pending: break
         case .failed(let text): message = text
-        }
-    }
-}
-
-/// One thing Pro unlocks: a tinted symbol tile, a title, one plain line. The feature you reached for glows.
-private struct FeatureRow: View {
-    let feature: ProFeature
-    let isHighlighted: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.accentText)
-                .frame(width: 30, height: 30)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.accentTint))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.body.weight(.semibold))
-                Text(detail).font(.callout).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(LinearGradient.accentRowTint)
-                .opacity(isHighlighted ? 1 : 0)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var symbol: String {
-        switch feature {
-        case .moreRules: "infinity"
-        case .everyTrigger: "play.circle"
-        case .lower: "speaker.wave.1.fill"
-        case .youTubeMusic: "play.rectangle.fill"
-        case .customFade: "waveform.path"
-        }
-    }
-
-    private var title: String {
-        switch feature {
-        case .moreRules: "Unlimited rules"
-        case .everyTrigger: "Every trigger"
-        case .lower: "Lower instead of pause"
-        case .youTubeMusic: "YouTube Music"
-        case .customFade: "Your own fade"
-        }
-    }
-
-    private var detail: String {
-        switch feature {
-        case .moreRules: "Every app you use, not just two."
-        case .everyTrigger: "While an app is open, not only in front."
-        case .lower: "Music keeps playing, softly."
-        case .youTubeMusic: "In Chrome and Safari."
-        case .customFade: "From instant to five slow seconds."
         }
     }
 }

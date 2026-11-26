@@ -23,7 +23,9 @@ nonisolated enum Radius {
 
 nonisolated enum Size {
     static let popoverWidth: CGFloat = 320
-    static let settingsWindowWidth: CGFloat = 560
+    /// Settings: a fixed landscape window, sidebar plus page. Never resizes between tabs.
+    static let settingsWindow = CGSize(width: 820, height: 600)
+    static let settingsSidebarWidth: CGFloat = 200
     static let onboardingWindow = CGSize(width: 520, height: 460)
     static let menuBarGlyph: CGFloat = 18
     static let statusGlyphTile: CGFloat = 34

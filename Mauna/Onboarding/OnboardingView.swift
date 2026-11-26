@@ -18,33 +18,44 @@ struct OnboardingView: View {
         _suggestions = State(initialValue: suggestions)
     }
 
+    /// Landscape: the step and its reason on the left, the choices on the right, buttons along the
+    /// bottom. Everything fits at once, so nothing needs scrolling to find.
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(.horizontal, 32)
-                .padding(.top, 36)
-                .padding(.bottom, 20)
-
-            ZStack(alignment: .topLeading) {
-                switch step {
-                case 0: PlayersStep(session: model.session).transition(slide)
-                case 1: AppsStep(state: suggestions, coordinator: model.rules).transition(slide)
-                default: PermissionsStep(model: model).transition(slide)
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    StatusTile(state: .playing, isActing: true, size: 44)
+                        .padding(.bottom, 26)
+                    header
+                    Spacer(minLength: 0)
                 }
+                .frame(width: 250, alignment: .topLeading)
+                .padding(.leading, 36)
+                .padding(.trailing, 28)
+                .padding(.top, 44)
+
+                ZStack(alignment: .topLeading) {
+                    switch step {
+                    case 0: PlayersStep(session: model.session).transition(slide)
+                    case 1: AppsStep(state: suggestions, coordinator: model.rules).transition(slide)
+                    default: PermissionsStep(model: model).transition(slide)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.top, 44)
+                .padding(.trailing, 36)
+                .clipped()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.horizontal, 32)
-            .clipped()
 
             footer
-                .padding(.horizontal, 32)
+                .padding(.horizontal, 36)
                 .padding(.vertical, 20)
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .task { await suggestions.load(existing: model.rules) }
     }
 
-    static let size = CGSize(width: 560, height: 620)
+    static let size = CGSize(width: 820, height: 520)
 
     /// Forward and back slide along the same path (DESIGN.md › Motion: onboarding step, 0.3 s).
     private var slide: AnyTransition {
@@ -86,7 +97,7 @@ struct OnboardingView: View {
 
     private var subtitle: String {
         switch step {
-        case 0: "Mauna pauses, fades and brings back this player. It never reads what you listen to."
+        case 0: "Mauna pauses, fades and brings back this player. It never reads what you listen to. You can switch players any time, from the menu bar or Settings."
         case 1: "Found on your Mac. Tick the ones that should quiet your music. You can change any of this later."
         default: "macOS asks once before Mauna can control your player."
         }
@@ -410,7 +421,7 @@ private struct PermissionsStep: View {
                 SettingsRow(showsDivider: false) {
                     HStack(spacing: 14) {
                         WaveGlyphView(state: .ducked, size: 22)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.onAccent)
                             .frame(width: 40, height: 40)
                             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(LinearGradient.accentFill))
                         VStack(alignment: .leading, spacing: 3) {

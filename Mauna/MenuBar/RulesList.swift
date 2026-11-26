@@ -162,10 +162,10 @@ private struct FoldRow: View {
 }
 
 /// Up to four app icons overlapping like a stack of cards, the first on top.
-private struct IconStack: View {
+struct IconStack: View {
     let bundleIDs: [String]
-    private let size: CGFloat = 20
-    private let step: CGFloat = 15
+    var size: CGFloat = 20
+    var step: CGFloat = 15
 
     var body: some View {
         let ids = Array(bundleIDs.prefix(4))
@@ -330,9 +330,34 @@ enum AppIcon {
         return image
     }
 
+    /// Remembered after the first look: Launch Services lookups are slow when a long list redraws.
     static func isInstalled(_ bundleID: String) -> Bool {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil
+        if let known = installed[bundleID] { return known }
+        let found = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil
+        installed[bundleID] = found
+        return found
     }
+
+    /// An app's icon from its location, remembered.
+    static func image(atPath path: String) -> NSImage {
+        if let cached = pathCache[path] { return cached }
+        let image = NSWorkspace.shared.icon(forFile: path)
+        pathCache[path] = image
+        return image
+    }
+
+    /// The app's App Store category ("public.app-category.games"), remembered.
+    static func category(for bundleID: String) -> String? {
+        if let known = categories[bundleID] { return known }
+        let found = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+            .flatMap { Bundle(url: $0)?.infoDictionary?["LSApplicationCategoryType"] as? String }
+        categories[bundleID] = .some(found)
+        return found
+    }
+
+    private static var categories: [String: String?] = [:]
+    private static var installed: [String: Bool] = [:]
+    private static var pathCache: [String: NSImage] = [:]
 
     /// A small copy for menus, which draw images at their own size.
     static func menuImage(for bundleID: String) -> NSImage {

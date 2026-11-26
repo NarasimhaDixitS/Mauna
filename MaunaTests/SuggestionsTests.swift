@@ -77,4 +77,16 @@ struct SuggestionsEdgeTests {
         ])
         #expect(result.first?.items.map(\.app.name) == ["Chess"])
     }
+
+    @Test("Rules sections: Mauna's own list first, then the app's category, else Other")
+    func kinds() {
+        #expect(Suggestions.kind(of: "us.zoom.xos", category: "public.app-category.productivity") == .calls)
+        #expect(Suggestions.kind(of: "net.whatsapp.WhatsApp", category: nil) == .calls)
+        #expect(Suggestions.kind(of: "com.adobe.PremierePro.25", category: nil) == .creating)
+        #expect(Suggestions.kind(of: "com.apple.Chess", category: "public.app-category.board-games") == .games)
+        #expect(Suggestions.kind(of: "com.example.player", category: "public.app-category.video") == .watching)
+        #expect(Suggestions.kind(of: "com.apple.Notes", category: "public.app-category.productivity") == .focus)
+        #expect(Suggestions.kind(of: "com.apple.finder", category: nil) == nil)
+        #expect(Suggestions.kind(of: "com.example.weather", category: "public.app-category.weather") == nil)
+    }
 }

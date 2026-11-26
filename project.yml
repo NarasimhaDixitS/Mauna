@@ -58,6 +58,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: in.throttlelabs.mauna
         PRODUCT_NAME: Mauna
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: Apple Development
         DEVELOPMENT_TEAM: 23495RS836   # a stable signature keeps the Automation permission across rebuilds
@@ -96,6 +97,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: in.throttlelabs.mauna
         PRODUCT_NAME: MaunaAppStore   # own .app in the build folder; people still see "Mauna"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: Apple Development
         DEVELOPMENT_TEAM: 23495RS836

@@ -13,6 +13,26 @@ enum DesignSnapshot {
         let read = safari
             ? "JSON.stringify({level:L(),wish:v?v.volume:null,el:v?Math.round(d.get.call(v)*1000)/1000:null,paused:v?v.paused:null})"
             : "JSON.stringify({ctx:c&&c.state,gain:g?Math.round(g.gain.value*1000)/1000:null,el:v?v.volume:null,paused:v?v.paused:null,hold:w.__maunaHold})"
+        if let count = ProcessInfo.processInfo.environment["MAUNA_PROBE_RULES"].flatMap(Int.init) {
+            // Time how long Settings › Rules takes to appear with `count` rules (nothing is saved).
+            let model = AppModel()
+            model.session.dryRun = true
+            let names = ["Notes", "Xcode", "Figma", "Zoom", "Keynote", "Pages", "Numbers", "TV", "VLC", "Chess"]
+            model.rules.showPreviewRules((0..<count).map { i in
+                Rule(bundleID: "test.app\(i)", appName: "\(names[i % names.count]) \(i)", trigger: i % 3 == 0 ? .running : .inFront,
+                     action: i % 2 == 0 ? .paused : .ducked)
+            })
+            model.store.preview(.pro)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+            let start = Date()
+            let host = NSHostingView(rootView: RulesSettings(model: model).frame(width: 620, height: 600))
+            window.contentView = host
+            window.orderFront(nil)
+            host.layoutSubtreeIfNeeded()
+            host.display()
+            print("rules page with \(count) rules appeared in \(Int(Date().timeIntervalSince(start) * 1000)) ms")
+            fflush(stdout); exit(0)
+        }
         if ProcessInfo.processInfo.environment["MAUNA_PROBE_MIC"] != nil {
             for line in MicWatcher.describeAll() { print(line) }
             let watcher = MicWatcher()
@@ -115,6 +135,13 @@ enum DesignSnapshot {
         case "pro": model.store.preview(.pro)
         default: break
         }
+        // MAUNA_SNAPSHOT_FOLDED=games,watching folds those Rules sections.
+        if let folded = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_FOLDED"] {
+            UserDefaults.standard.set(folded, forKey: "foldedRuleSections")
+        }
+        if let tab = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_TAB"] {
+            UserDefaults.standard.set(tab, forKey: SettingsTab.storageKey)
+        }
         let suggestions = SuggestionsState()
         Task { await suggestions.load(existing: model.rules) }
         let which = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_VIEW"] ?? "popover"
@@ -123,11 +150,13 @@ enum DesignSnapshot {
         case "rules":   AnyView(RulesSettings(model: model))
         case "sound":   AnyView(SoundSettings(model: model))
         case "general": AnyView(GeneralSettings(model: model))
+        case "settings": AnyView(SettingsView(model: model))   // MAUNA_SNAPSHOT_TAB picks the tab
         case "states":  AnyView(StatesSheet())
         case "upgrade": AnyView(UpgradeView(model: model, feature: nil) {})
         case "upgrade-yt": AnyView(UpgradeView(model: model, feature: .youTubeMusic) {})
         case "upgrade-onboarding": AnyView(UpgradeView(model: model, feature: nil, afterOnboarding: true) {})
         case "glyphs":  AnyView(GlyphStudySheet())
+        case "icons":   AnyView(IconStudySheet())
         case "welcome1": AnyView(OnboardingView(model: model, startStep: 0))
         case "welcome2": AnyView(OnboardingView(model: model, startStep: 1, suggestions: suggestions))
         case "welcome3": AnyView(OnboardingView(model: model, startStep: 2))

@@ -15,7 +15,9 @@ Based on Emil Kowalski's design-engineering rules ([emilkowalski/skills](https:/
 
 ## Colour
 
-- One accent (dusk indigo). It means "Mauna is acting now", plus the one primary button per view. The exception is the popover's status tile, which is Mauna's face: always indigo (deep at rest, bright with a soft glow while Mauna acts), and grey only when Mauna is off. Accent surfaces use the top-lit gradient (`LinearGradient.accentFill`), never a flat fill. A disabled primary button turns neutral, never pale lavender.
+- One accent: **champagne gold**, matching the black-and-gold app icon. It means "Mauna is acting now", plus the one primary button per view. Accent surfaces use the top-lit gold gradient (`LinearGradient.accentFill`), never a flat fill. Anything on gold is a warm near-black (`Color.onAccent`), never white. Gold text is champagne in dark mode and a deeper bronze in light mode, so it stays readable on white. A disabled primary button turns neutral, never pale gold.
+- The popover's status tile is Mauna's face, the app icon in miniature: black velvet with a gold wave. It glows gold while Mauna acts, and is grey only when Mauna is off.
+- A player's own colour (Spotify green, Apple Music red, YouTube Music red) appears in one place only: the soft glow behind its icon in the player card. Everything else stays gold, so Mauna never looks like part of the player.
 - Trigger badges are quiet at rest (tertiary symbol + word, no pill) and gain an accent pill only while that rule is in charge.
 - Neutrals are macOS semantic colours. Never hard-code greys in Swift.
 - No green for playing, no red for paused, no colour-coded trigger types. Triggers differ by glyph + word.

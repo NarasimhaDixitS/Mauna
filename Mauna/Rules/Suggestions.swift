@@ -140,6 +140,22 @@ nonisolated enum Suggestions {
         }
     }
 
+    /// Settings › Rules sections: what kind of app this is, from Mauna's own list, then the app's
+    /// App Store category. nil means "Other".
+    static func kind(of bundleID: String, category: String?) -> SuggestionGroup? {
+        if let entry = catalog.first(where: { $0.matches(bundleID) }) { return entry.group }
+        if Rule.callApps.contains(bundleID) { return .calls }
+        guard let category else { return nil }
+        let name = category.replacingOccurrences(of: "public.app-category.", with: "")
+        if name.contains("games") { return .games }
+        switch name {
+        case "video", "entertainment": return .watching
+        case "music", "photography", "graphics-design": return .creating
+        case "developer-tools", "productivity", "business", "education", "reference": return .focus
+        default: return nil
+        }
+    }
+
     /// What starts ticked.
     static func initiallyTicked(_ groups: [(group: SuggestionGroup, items: [Suggestion])]) -> Set<String> {
         Set(groups.filter(\.group.startsTicked).flatMap { $0.items.map(\.id) })

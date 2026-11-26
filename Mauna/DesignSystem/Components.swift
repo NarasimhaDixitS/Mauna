@@ -44,7 +44,7 @@ private struct MaunaButton: View {
         let accent = kind == .primary && isEnabled
         return configuration.label
             .font(kind == .small ? .callout.weight(.medium) : .body.weight(.medium))
-            .foregroundStyle(accent ? AnyShapeStyle(.white) : (isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary)))
+            .foregroundStyle(accent ? AnyShapeStyle(Color.onAccent) : (isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary)))
             .padding(.horizontal, kind == .small ? 9 : 13)
             .frame(height: height)
             .background {
@@ -118,7 +118,7 @@ struct AppIconView: View {
     var body: some View {
         Group {
             if let path {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+                Image(nsImage: AppIcon.image(atPath: path))
                     .resizable()
                     .interpolation(.high)
                     .shadow(color: .black.opacity(0.18), radius: size / 16, y: size / 24)
@@ -335,7 +335,7 @@ struct SettingsHeader: View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.onAccent)
                 .frame(width: 36, height: 36)
                 .background(
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -386,6 +386,7 @@ struct SettingsRow<Content: View>: View {
 }
 
 /// Shared page layout for Settings tabs.
+/// One Settings page: the header, then its cards. Scrolls inside the fixed window when it's long.
 struct SettingsPage<Content: View>: View {
     let symbol: String
     let title: String
@@ -393,20 +394,26 @@ struct SettingsPage<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let page = VStack(alignment: .leading, spacing: 16) {
             SettingsHeader(symbol: symbol, title: title, subtitle: subtitle)
             content
         }
-        .padding(24)
-        .frame(width: Size.settingsWindowWidth, alignment: .topLeading)
-        .fixedSize(horizontal: false, vertical: true)
+        .padding(28)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        // Design renders can't draw scroll views, so they get the page flat.
+        if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] != nil {
+            page.frame(width: Size.settingsWindow.width - Size.settingsSidebarWidth)
+        } else {
+            ScrollView { page }
+                .scrollIndicators(.automatic)
+        }
     }
 }
 
 // MARK: Status tile
 
-/// Mauna's face: an indigo tile with the white wave. Deep and calm at rest; brighter with a soft glow
-/// while Mauna acts; grey only when Mauna is off. The wave says what you hear: full, low, or ❙❙.
+/// Mauna's face, the app icon in miniature: black velvet with a gold wave. Calm at rest; lighter with a
+/// gold glow while Mauna acts; grey only when Mauna is off. The wave says what you hear: full, low, or ❙❙.
 /// 40pt in the popover header; larger in the upgrade window.
 struct StatusTile: View {
     let state: GlyphState
@@ -416,7 +423,8 @@ struct StatusTile: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: size * 0.275, style: .continuous)
         WaveGlyphView(state: state == .off ? .playing : state, size: size * 0.55)
-            .foregroundStyle(.white.opacity(state == .off ? 0.75 : 1))
+            .foregroundStyle(state == .off ? AnyShapeStyle(.white.opacity(0.75)) : AnyShapeStyle(LinearGradient.tileWave))
+            .shadow(color: state == .off ? .clear : Color(hex: 0xE9C77B).opacity(isActing ? 0.55 : 0.25), radius: size * 0.06)
             .frame(width: size, height: size)
             .background {
                 ZStack {

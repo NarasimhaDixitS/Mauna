@@ -53,7 +53,7 @@ extension Rule {
     static let availableTriggers: [Trigger] = [.inFront, .usingMicOrSound, .running]
 
     /// Apps you make calls in. They get "In a call": they sit open all day, but quiet music only on a call.
-    static let callApps: Set<String> = [
+    nonisolated static let callApps: Set<String> = [
         "us.zoom.xos", "com.microsoft.teams", "com.microsoft.teams2", "com.apple.FaceTime",
         "com.cisco.webexmeetingsapp", "Cisco-Systems.Spark", "com.webex.meetingmanager",
         "com.tinyspeck.slackmacgap", "com.hnc.Discord", "com.skype.skype", "net.whatsapp.WhatsApp",

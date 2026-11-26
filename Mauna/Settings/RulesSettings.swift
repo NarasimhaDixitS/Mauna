@@ -7,6 +7,55 @@ import UniformTypeIdentifiers
 struct RulesSettings: View {
     let model: AppModel
     private var coordinator: RuleCoordinator { model.rules }
+    @State private var query = ""
+
+    /// Rules matching the search, in your order.
+    private var shown: [Rule] {
+        let text = query.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return coordinator.rules }
+        return coordinator.rules.filter { $0.appName.localizedCaseInsensitiveContains(text) }
+    }
+
+    /// Sections start once the list is this long: below it, headers would outnumber the apps.
+    static let groupsFrom = 6
+
+    @AppStorage("foldedRuleSections") private var foldedRaw = ""
+    private var folded: Set<String> { Set(foldedRaw.split(separator: ",").map(String.init)) }
+
+    private func toggleFold(_ id: String) {
+        var set = folded
+        if !set.insert(id).inserted { set.remove(id) }
+        foldedRaw = set.sorted().joined(separator: ",")
+    }
+
+    /// Rules grouped by kind (Calls, Watching, Games…, then Other), each in your order. nil while
+    /// searching, for a short list, or when everything is one kind.
+    private var sections: [RuleSection]? {
+        let rules = coordinator.rules
+        guard query.trimmingCharacters(in: .whitespaces).isEmpty, rules.count >= Self.groupsFrom else { return nil }
+        var byKind: [SuggestionGroup?: [Rule]] = [:]
+        for rule in rules {
+            byKind[Suggestions.kind(of: rule.bundleID, category: AppIcon.category(for: rule.bundleID)), default: []].append(rule)
+        }
+        let order: [SuggestionGroup?] = SuggestionGroup.allCases.map { $0 } + [nil]
+        let result = order.compactMap { kind in byKind[kind].map { RuleSection(kind: kind, rules: $0) } }
+        return result.count > 1 ? result : nil
+    }
+
+    private func ruleCard(_ rules: [Rule], resting: Set<Rule.ID>) -> some View {
+        SettingsCard {
+            // Rows are built as they scroll into view, so a long list opens at once.
+            LazyVStack(spacing: 0) {
+                ForEach(Array(rules.enumerated()), id: \.element.id) { index, rule in
+                    SettingsRow(showsDivider: index < rules.count - 1) {
+                        RuleEditorRow(rule: rule, coordinator: coordinator,
+                                      isResting: resting.contains(rule.id), unlocksPro: model.unlocksPro,
+                                      upgrade: { model.showUpgrade(for: $0) })
+                    }
+                }
+            }
+        }
+    }
 
     var body: some View {
         SettingsPage(symbol: "app.badge.checkmark", title: "Rules", subtitle: "Apps that quiet your music, and when.") {
@@ -15,28 +64,135 @@ struct RulesSettings: View {
                     withAnimation(.maunaEaseOut(0.2)) { coordinator.dismissMovedCallNote() }
                 }
             }
-            if coordinator.rules.isEmpty {
-                EmptyRulesCard()
-            } else {
-                SettingsCard {
-                    ForEach(Array(coordinator.rules.enumerated()), id: \.element.id) { index, rule in
-                        SettingsRow(showsDivider: index < coordinator.rules.count - 1) {
-                            RuleEditorRow(rule: rule, coordinator: coordinator,
-                                          isResting: coordinator.isResting(rule), unlocksPro: model.unlocksPro,
-                                          upgrade: { model.showUpgrade(for: $0) })
-                        }
-                    }
-                }
-            }
             HStack(alignment: .center, spacing: 12) {
                 AddAppMenu(coordinator: coordinator, upgrade: model.unlocksPro ? nil : { model.showUpgrade(for: $0) })
-                Spacer()
+                if !coordinator.rules.isEmpty {
+                    SearchField(text: $query, prompt: "Search \(coordinator.rules.count) apps")
+                }
+                Spacer(minLength: 0)
                 if Store.sellsInApp, !model.unlocksPro {
                     FreePlanNote { model.showUpgrade(for: nil) }
                 }
             }
+            if coordinator.rules.isEmpty {
+                EmptyRulesCard()
+            } else if shown.isEmpty {
+                Text("No app matches \u{201C}\(query)\u{201D}.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+            } else if let sections {
+                // Grouped by kind once the list is long; each section folds, and Mauna remembers.
+                let resting = coordinator.restingIDs   // once for the whole list, not per row
+                ForEach(sections) { section in
+                    let isFolded = folded.contains(section.id)
+                    VStack(alignment: .leading, spacing: 8) {
+                        RuleSectionHeader(section: section, isFolded: isFolded,
+                                          restingCount: section.rules.filter { resting.contains($0.id) }.count) {
+                            withAnimation(.maunaEaseOut(0.22)) { toggleFold(section.id) }
+                        }
+                        if !isFolded {
+                            ruleCard(section.rules, resting: resting)
+                                .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .top)))
+                        }
+                    }
+                }
+            } else {
+                ruleCard(shown, resting: coordinator.restingIDs)
+            }
         }
         .tint(.accentFill)
+    }
+}
+
+/// One section of Settings › Rules: the apps of one kind.
+private struct RuleSection: Identifiable {
+    let kind: SuggestionGroup?
+    let rules: [Rule]
+    var id: String { kind?.rawValue ?? "other" }
+    var title: String { kind?.title ?? "Other" }
+    var symbol: String { kind?.symbol ?? "square.grid.2x2.fill" }
+}
+
+/// "› [icon] Calls  3 · 1 resting": click to fold. Folded, the apps' icons sit on the right.
+private struct RuleSectionHeader: View {
+    let section: RuleSection
+    let isFolded: Bool
+    let restingCount: Int
+    let toggle: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 9) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(hovering ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                    .rotationEffect(.degrees(isFolded ? 0 : 90))
+                    .frame(width: 10)
+                Image(systemName: section.symbol)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.accentText)
+                    .frame(width: 22, height: 22)
+                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.accentTint))
+                Text(section.title)
+                    .font(.body.weight(.semibold))
+                Text("\(section.rules.count)")
+                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                if restingCount > 0 {
+                    Text("· \(restingCount) resting")
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: 8)
+                if isFolded {
+                    IconStack(bundleIDs: section.rules.map(\.bundleID), size: 18, step: 13)
+                        .transition(.opacity)
+                }
+            }
+            .padding(.horizontal, 4)
+            .frame(height: 26)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainTextButtonStyle())
+        .onHover { hovering = $0 }
+        .help(isFolded ? "Show \(section.title)" : "Fold \(section.title)")
+        .accessibilityLabel("\(section.title), \(section.rules.count) apps")
+        .accessibilityValue(isFolded ? "Folded" : "Open")
+    }
+}
+
+/// A quiet search field: magnifier, text, and a clear button once you've typed.
+private struct SearchField: View {
+    @Binding var text: String
+    let prompt: String
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.tertiary)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .focused($focused)
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                }
+                .buttonStyle(PlainTextButtonStyle())
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal, 10)
+        .frame(width: 190, height: 28)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.well))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .strokeBorder(Color.accentFill.opacity(focused ? 0.6 : 0), lineWidth: 1))
+        .animation(.maunaEaseOut(0.15), value: focused)
     }
 }
 
@@ -85,6 +241,7 @@ private struct FreePlanNote: View {
                 ProBadge()
             }
             .font(.callout)
+            .fixedSize()
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainTextButtonStyle())
@@ -159,22 +316,36 @@ private struct RuleEditorRow: View {
 
             Spacer(minLength: 8)
 
-            Picker("Trigger", selection: triggerBinding) {
-                ForEach(Rule.availableTriggers, id: \.self) { trigger in
-                    Label(unlocksPro || trigger == .inFront ? trigger.name : "\(trigger.name) · Pro", systemImage: trigger.symbol)
-                        .tag(trigger)
+            // One compact chip ("In front · Pause"). Its menu is built only when opened, so even a
+            // long list of rules is quick to show.
+            Menu {
+                Picker("Trigger", selection: triggerBinding) {
+                    ForEach(Rule.availableTriggers, id: \.self) { trigger in
+                        Label(unlocksPro || trigger == .inFront ? trigger.name : "\(trigger.name) · Pro", systemImage: trigger.symbol)
+                            .tag(trigger)
+                    }
                 }
+                Picker("Action", selection: actionBinding) {
+                    Text("Pause").tag(Hold.paused)
+                    Text(unlocksPro ? "Lower" : "Lower · Pro").tag(Hold.ducked)
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: rule.trigger.symbol).font(.system(size: 10, weight: .semibold))
+                    Text("\(rule.trigger.name) · \(rule.action == .paused ? "Pause" : "Lower")")
+                        .font(.callout.weight(.semibold))
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 8, weight: .bold))
+                }
+                .foregroundStyle(isResting ? AnyShapeStyle(.secondary) : AnyShapeStyle(.accentText))
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(Capsule().fill(isResting ? AnyShapeStyle(.well) : AnyShapeStyle(.accentTint)))
             }
-            .labelsHidden()
+            .menuStyle(.button)
+            .buttonStyle(PlainTextButtonStyle())
+            .menuIndicator(.hidden)
             .fixedSize()
-
-            Picker("Action", selection: actionBinding) {
-                Text("Pause").tag(Hold.paused)
-                Text("Lower").tag(Hold.ducked)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
+            .help("Change when \(rule.appName) quiets your music")
 
             Button {
                 coordinator.remove(rule.id)

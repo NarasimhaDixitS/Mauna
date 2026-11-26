@@ -1,36 +1,117 @@
 import SwiftUI
 
-enum SettingsTab: String, CaseIterable {
-    case players, rules, sound, general, debug
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case players, rules, sound, general, pro, debug
     static let storageKey = "settingsTab"
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .players: "Players"
+        case .rules: "Rules"
+        case .sound: "Sound"
+        case .general: "General"
+        case .pro: "Mauna Pro"
+        case .debug: "Debug"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .players: "music.note"
+        case .rules: "app.badge.checkmark"
+        case .sound: "speaker.wave.2.fill"
+        case .general: "gearshape.fill"
+        case .pro: "sparkle"
+        case .debug: "ladybug.fill"
+        }
+    }
+
+    /// Tabs this build shows. Pro only where it's sold; Debug only in debug builds.
+    static var visible: [SettingsTab] {
+        var tabs: [SettingsTab] = [.players, .rules, .sound, .general]
+        if Store.sellsInApp { tabs.append(.pro) }
+        #if DEBUG
+        tabs.append(.debug)
+        #endif
+        return tabs
+    }
 }
 
-/// Settings window: standard macOS toolbar tabs (design-system.html › Screens).
+/// Settings: a fixed landscape window like System Settings. A sidebar of tabs on the left, the page
+/// on the right. Same size for every tab, so switching is instant and nothing jumps.
 struct SettingsView: View {
     let model: AppModel
     @AppStorage(SettingsTab.storageKey) private var tab: SettingsTab = .rules
 
     var body: some View {
-        TabView(selection: $tab) {
-            PlayersSettings(model: model)
-                .tabItem { Label("Players", systemImage: "music.note") }
-                .tag(SettingsTab.players)
-            RulesSettings(model: model)
-                .tabItem { Label("Rules", systemImage: "list.bullet") }
-                .tag(SettingsTab.rules)
-            SoundSettings(model: model)
-                .tabItem { Label("Sound", systemImage: "speaker.wave.2") }
-                .tag(SettingsTab.sound)
-            GeneralSettings(model: model)
-                .tabItem { Label("General", systemImage: "gearshape") }
-                .tag(SettingsTab.general)
+        HStack(spacing: 0) {
+            SettingsSidebar(selection: $tab, plan: model.store.plan)
+                .frame(width: Size.settingsSidebarWidth)
+            Rectangle().fill(.hairline).frame(width: 0.5)
+            page
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .id(tab)
+        }
+        .frame(width: Size.settingsWindow.width,
+               height: ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] == nil ? Size.settingsWindow.height : nil)
+    }
+
+    @ViewBuilder private var page: some View {
+        switch tab {
+        case .players: PlayersSettings(model: model)
+        case .rules: RulesSettings(model: model)
+        case .sound: SoundSettings(model: model)
+        case .general: GeneralSettings(model: model)
+        case .pro: ProSettings(model: model)
+        case .debug:
             #if DEBUG
             DebugSettings(model: model)
-                .tabItem { Label("Debug", systemImage: "ladybug") }
-                .tag(SettingsTab.debug)
+            #else
+            EmptyView()
             #endif
         }
-        .frame(width: Size.settingsWindowWidth)
+    }
+}
+
+/// The tab list: a small gold tile and a name per tab; the selected one sits on a soft gold tint.
+private struct SettingsSidebar: View {
+    @Binding var selection: SettingsTab
+    let plan: Plan
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(SettingsTab.visible) { tab in
+                Button { selection = tab } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: tab.symbol)
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(Color.onAccent)
+                            .frame(width: 24, height: 24)
+                            .background(RoundedRectangle(cornerRadius: 6.5, style: .continuous).fill(LinearGradient.accentFill))
+                        Text(tab.title)
+                            .font(.body.weight(selection == tab ? .semibold : .regular))
+                        Spacer(minLength: 0)
+                        if tab == .pro, plan == .pro { ProBadge() }
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(height: 34)
+                    .background {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(LinearGradient.accentRowTint)
+                            .opacity(selection == tab ? 1 : 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainTextButtonStyle())
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 14)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(.well.opacity(0.5))
     }
 }
 

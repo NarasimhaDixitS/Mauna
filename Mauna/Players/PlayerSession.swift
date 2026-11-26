@@ -52,6 +52,14 @@ final class PlayerSession {
             applyNormalVolumeSoon()
         }
     }
+    /// YouTube Music: Mauna's own level on top of the page's volume (its slider stays YouTube Music's).
+    /// 1 = exactly as loud as YouTube Music is set. Music always comes back to this level.
+    var browserLevel: Double = PlayerSession.saved(Keys.browserLevel, 1) {
+        didSet {
+            UserDefaults.standard.set(browserLevel, forKey: Keys.browserLevel)
+            applyBrowserLevelSoon()
+        }
+    }
     /// Ducked volume as a share of the normal volume.
     var duckLevel: Double = PlayerSession.saved(Keys.duckLevel, AudioTiming.duckLevel) {
         didSet { UserDefaults.standard.set(duckLevel, forKey: Keys.duckLevel) }
@@ -90,6 +98,7 @@ final class PlayerSession {
 
     private enum Keys {
         static let normalVolume = "normalVolume"
+        static let browserLevel = "browserLevel"
         static let duckLevel = "duckLevel"
         static let fadeTime = "fadeTime"
         static let player = "player"
@@ -245,7 +254,8 @@ final class PlayerSession {
 
     /// The level music rests at: the saved normal volume, or the player's own (YouTube Music's slider).
     private func restingVolume(_ controller: any PlayerController) async -> Double {
-        (try? await controller.homeVolume()) ?? normalVolume
+        let home = (try? await controller.homeVolume()) ?? normalVolume
+        return controller.player.isBrowser ? home * browserLevel : home
     }
 
     private func fadeOutAndPause(_ controller: any PlayerController, state: PlaybackState) async throws {
@@ -256,7 +266,7 @@ final class PlayerSession {
         // Leave the player at its resting volume, so pressing play by hand isn't silent.
         let resting = await restingVolume(controller)
         try await controller.setVolume(resting)
-        try await controller.releaseVolume()
+        try await settle(controller)
         volume = resting
         playback = .paused
     }
@@ -299,7 +309,39 @@ final class PlayerSession {
             volume = resting
         }
         // Back to normal: the player owns its volume again.
+        try await settle(controller)
+    }
+
+    /// Done acting: hand the volume back. YouTube Music below 100% keeps Mauna's level in force (renewed
+    /// by the 2 s check); at 100% the page simply owns its volume again.
+    private func settle(_ controller: any PlayerController) async throws {
+        if controller.player.isBrowser && browserLevel < 0.995 { return }
         try await controller.releaseVolume()
+    }
+
+    /// YouTube Music's level changed: apply it now unless Mauna is lowering or pausing.
+    private func applyBrowserLevelSoon() {
+        guard player.isBrowser else { return }
+        volumeTask?.cancel()
+        let controller = self.controller
+        volumeTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(120))   // let the slider settle
+            guard let self, !Task.isCancelled else { return }
+            await keepBrowserLevel(controller)
+        }
+    }
+
+    /// Puts YouTube Music at Mauna's level while nothing is held. Safe to repeat: the 2 s check calls it,
+    /// so the level survives the tab reloading.
+    private func keepBrowserLevel(_ controller: any PlayerController) async {
+        guard controller.player.isBrowser, controller.player == player, hold == .none, !isFading, !isLocked else { return }
+        if browserLevel < 0.995 {
+            try? await controller.setVolume(browserLevel)
+        } else {
+            try? await controller.setVolume(1)
+            try? await controller.releaseVolume()
+        }
+        volume = browserLevel
     }
 
     /// The normal volume changed (Settings › Sound). If the music is playing untouched, move to it now.
@@ -414,6 +456,8 @@ final class PlayerSession {
                 guard let self, !Task.isCancelled else { return }
                 guard self.player.isRunning else { continue }
                 let controller = self.controller
+                // Below 100%, keep Mauna's level in force (also after the tab reloads).
+                if self.browserLevel < 0.995 { await self.keepBrowserLevel(controller) }
                 do {
                     let state = try await controller.state()
                     guard controller.player == self.player else { continue }

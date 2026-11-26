@@ -113,7 +113,7 @@ private struct FadeCurve: View {
                     path.addLine(to: CGPoint(x: outWidth + (size.width - outWidth) * t, y: size.height * (1 - AudioTiming.fadeInGain(t))))
                 }
                 context.stroke(path, with: .linearGradient(
-                    Gradient(colors: [Color(light: 0x5B56D8, dark: 0x8C88FF), Color(light: 0x4540B8, dark: 0xA9A5FF)]),
+                    Gradient(colors: [Color(light: 0xC39A4F, dark: 0xF2DCA6), Color(light: 0x8A6420, dark: 0xC9A35B)]),
                     startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0)),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
             }

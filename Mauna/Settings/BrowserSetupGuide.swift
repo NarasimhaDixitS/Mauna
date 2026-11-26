@@ -14,7 +14,7 @@ struct BrowserSetupGuide: View {
                 HStack(alignment: .top, spacing: 10) {
                     Text("\(index + 1)")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.onAccent)
                         .frame(width: 18, height: 18)
                         .background(Circle().fill(LinearGradient.accentFill))
                     VStack(alignment: .leading, spacing: 6) {

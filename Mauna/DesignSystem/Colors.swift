@@ -9,14 +9,17 @@ extension ShapeStyle where Self == Color {
     /// Active glyph tile, primary button, switch on. White content on top.
     static var accentFill: Color { Color("AccentColor") }
 
-    /// "now" label, active badge, links on backgrounds.
-    static var accentText: Color { Color(light: 0x4540B8, dark: 0xA9A5FF) }
+    /// "now" label, active badge, links on backgrounds. Bronze in light mode (champagne won't read on white).
+    static var accentText: Color { Color(light: 0x8A6420, dark: 0xE6C98A) }
+
+    /// Text and symbols on a gold surface: a warm near-black, never white.
+    static var onAccent: Color { Color(hex: 0x241A09) }
 
     /// Active rule row background.
-    static var accentTint: Color { Color(light: (0x4C47C4, 0.09), dark: (0x8C88FF, 0.15)) }
+    static var accentTint: Color { Color(light: (0xB8913F, 0.14), dark: (0xE2C07A, 0.15)) }
 
     /// Pressed state of accent fills.
-    static var accentPressed: Color { Color(light: 0x3F3AA8, dark: 0x5A55D6) }
+    static var accentPressed: Color { Color(light: 0xA98136, dark: 0xC9A35B) }
 
     /// 0.5pt separators inside groups only.
     static var hairline: Color { Color(light: (0x000000, 0.06), dark: (0xFFFFFF, 0.07)) }
@@ -70,27 +73,38 @@ extension NSColor {
 extension LinearGradient {
     /// Accent surfaces get light from the top: a subtle gradient instead of one flat colour.
     static var accentFill: LinearGradient {
+        // Champagne gold, brighter at the top where the light hits.
         LinearGradient(
-            colors: [Color(light: 0x5B56D8, dark: 0x7672EF), Color(light: 0x4540B8, dark: 0x5A55D6)],
+            colors: [Color(light: 0xEBD39A, dark: 0xF2DCA6), Color(light: 0xC39A4F, dark: 0xC9A35B)],
             startPoint: .top, endPoint: .bottom
         )
     }
 
     static var accentPressed: LinearGradient {
         LinearGradient(
-            colors: [Color(light: 0x4C47C4, dark: 0x6762E8), Color(light: 0x3B36A0, dark: 0x4E49C8)],
+            colors: [Color(light: 0xD6B676, dark: 0xDCC07F), Color(light: 0xA98136, dark: 0xAE8740)],
             startPoint: .top, endPoint: .bottom
         )
     }
 
-    /// Status tile at rest: Mauna's face, a deep calm indigo. Never grey unless Mauna is off.
+    /// Status tile at rest: Mauna's face, the app icon in miniature. Black velvet. Never grey unless off.
     static var tileRest: LinearGradient {
-        LinearGradient(colors: [Color(hex: 0x4C47C4), Color(hex: 0x2E2A86)], startPoint: .top, endPoint: .bottom)
+        LinearGradient(colors: [Color(white: 0.2), Color(white: 0.06)], startPoint: .top, endPoint: .bottom)
     }
 
-    /// Status tile while Mauna acts: brighter, with `Color.tileGlow` around it.
+    /// Status tile while Mauna acts: a little lighter, with a gold glow (`Color.tileGlow`) around it.
     static var tileActing: LinearGradient {
-        LinearGradient(colors: [Color(hex: 0x6F6AF0), Color(hex: 0x4C47C4)], startPoint: .top, endPoint: .bottom)
+        LinearGradient(colors: [Color(white: 0.26), Color(white: 0.09)], startPoint: .top, endPoint: .bottom)
+    }
+
+    /// The gold of the wave on the status tile and the icon.
+    static var tileWave: LinearGradient {
+        LinearGradient(stops: [
+            .init(color: Color(hex: 0xC9A35B), location: 0),
+            .init(color: Color(hex: 0xFFF1C9), location: 0.32),
+            .init(color: Color(hex: 0xD9B66A), location: 0.6),
+            .init(color: Color(hex: 0xA97F38), location: 1),
+        ], startPoint: .top, endPoint: .bottom)
     }
 
     /// Status tile when Mauna is off: the only grey state.
@@ -101,7 +115,7 @@ extension LinearGradient {
     /// Active rule row: the tint fades out to the right, so the row glows from the icon.
     static var accentRowTint: LinearGradient {
         LinearGradient(
-            colors: [Color(light: (0x4C47C4, 0.13), dark: (0x8C88FF, 0.20)), Color(light: (0x4C47C4, 0.04), dark: (0x8C88FF, 0.06))],
+            colors: [Color(light: (0xB8913F, 0.16), dark: (0xE2C07A, 0.17)), Color(light: (0xB8913F, 0.04), dark: (0xE2C07A, 0.05))],
             startPoint: .leading, endPoint: .trailing
         )
     }
@@ -109,10 +123,10 @@ extension LinearGradient {
 
 extension Color {
     /// Coloured shadow under accent surfaces.
-    static var accentShadow: Color { Color(light: (0x2E2890, 0.35), dark: (0x000000, 0.5)) }
+    static var accentShadow: Color { Color(light: (0x7A5A24, 0.35), dark: (0x000000, 0.5)) }
 
     /// The soft glow around the status tile while Mauna acts.
-    static var tileGlow: Color { Color(hex: 0x6F6AF0).opacity(0.55) }
+    static var tileGlow: Color { Color(hex: 0xE9C77B).opacity(0.5) }
 
     init(hex: UInt32) {
         self.init(nsColor: NSColor(hex: hex))

@@ -89,8 +89,15 @@ struct PopoverView: View {
                 .keyboardShortcut(",")
                 .foregroundStyle(.secondary)
             Spacer()
-            if Store.sellsInApp, model.store.plan != .pro {
-                Button { model.showUpgrade(for: nil) } label: { ProLink(plan: model.store.plan) }
+            if Store.sellsInApp {
+                if model.store.plan == .pro {
+                    // Owned: a quiet gold mark, not a pitch. Opens Settings › Mauna Pro.
+                    SettingsButton(title: "Mauna Pro", symbol: "sparkle", tab: .pro)
+                        .foregroundStyle(.accentText)
+                        .help("You have Mauna Pro, for life")
+                } else {
+                    Button { model.showUpgrade(for: nil) } label: { ProLink(plan: model.store.plan) }
+                }
                 Spacer()
             }
             Button("Quit") { NSApplication.shared.terminate(nil) }
@@ -252,38 +259,38 @@ private struct PlayerCard: View {
             }
             .buttonStyle(PlainTextButtonStyle())
         } else if session.player.isBrowser {
-            // The page owns its volume: Mauna only lowers and pauses it, then hands it back.
-            HStack(spacing: 6) {
-                Image(systemName: "slider.horizontal.below.rectangle")
-                Text("Volume follows YouTube Music")
-                Spacer(minLength: 0)
-                Text(percentText).monospacedDigit().contentTransition(.numericText())
+            // Mauna's own level on top of YouTube Music's volume. The page's slider stays its own.
+            VStack(alignment: .leading, spacing: 4) {
+                volumeSlider($session.browserLevel, label: "YouTube Music level")
+                Text("Of YouTube Music's own volume")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 18)
             }
-            .font(.subheadline)
-            .foregroundStyle(.tertiary)
         } else {
-            HStack(spacing: 8) {
-                Image(systemName: "speaker.fill")
-                    .font(.system(size: 10))
-                MaunaSlider(value: $session.normalVolume, range: 0.1...1, step: 0.01)
-                    .accessibilityLabel("Normal volume")
-                Text(percentText)
-                    .font(.subheadline)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .frame(width: 32, alignment: .trailing)
-            }
-            .foregroundStyle(.tertiary)
+            volumeSlider($session.normalVolume, label: "Normal volume")
         }
     }
 
-    /// Native players: the normal volume you set. YouTube Music: the level you hear now.
-    private var percentText: String {
-        if session.player.isBrowser {
-            guard let volume = session.volume, session.playback == .playing else { return "" }
-            return "\(Int((volume * 100).rounded()))%"
+    private func volumeSlider(_ value: Binding<Double>, label: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "speaker.fill")
+                .font(.system(size: 10))
+            MaunaSlider(value: value, range: 0.1...1, step: 0.01)
+                .accessibilityLabel(label)
+            Text(percentText)
+                .font(.subheadline)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .frame(width: 32, alignment: .trailing)
         }
-        return "\(Int((session.normalVolume * 100).rounded()))%"
+        .foregroundStyle(.tertiary)
+    }
+
+    /// The level music comes back to: the player's normal volume, or Mauna's YouTube Music level.
+    private var percentText: String {
+        let level = session.player.isBrowser ? session.browserLevel : session.normalVolume
+        return "\(Int((level * 100).rounded()))%"
     }
 
     /// "Playing", "Lowered by Mauna". Browser players say where: "Playing in Chrome".
@@ -347,7 +354,7 @@ private struct ChooseButtonFace: View {
         Image(systemName: "chevron.down")
             .font(.system(size: 10, weight: .bold))
             .rotationEffect(.degrees(isOpen ? 180 : 0))
-            .foregroundStyle(isOpen ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+            .foregroundStyle(isOpen ? AnyShapeStyle(Color.onAccent) : AnyShapeStyle(.secondary))
             .frame(width: 24, height: 24)
             .background {
                 ZStack {
