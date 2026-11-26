@@ -17,10 +17,10 @@ struct EntitlementTests {
         #expect(Plan.current(ownsPro: true, trialStartedAt: now, now: now) == .pro)
     }
 
-    @Test func trialLastsFourteenDays() {
-        let started = now.addingTimeInterval(-13 * day)
+    @Test func trialLastsSevenDays() {
+        let started = now.addingTimeInterval(-6 * day)
         #expect(Plan.current(ownsPro: false, trialStartedAt: started, now: now).unlocksPro)
-        let expired = now.addingTimeInterval(-14 * day - 1)
+        let expired = now.addingTimeInterval(-7 * day - 1)
         #expect(Plan.current(ownsPro: false, trialStartedAt: expired, now: now) == .free)
     }
 
@@ -29,8 +29,8 @@ struct EntitlementTests {
     }
 
     @Test func daysLeftRoundsUp() {
-        let plan = Plan.trial(endsAt: now.addingTimeInterval(8.2 * day))
-        #expect(plan.trialDaysLeft(now: now) == 9)
+        let plan = Plan.trial(endsAt: now.addingTimeInterval(4.2 * day))
+        #expect(plan.trialDaysLeft(now: now) == 5)
         let lastHours = Plan.trial(endsAt: now.addingTimeInterval(3600))
         #expect(lastHours.trialDaysLeft(now: now) == 1)
         #expect(Plan.pro.trialDaysLeft(now: now) == nil)

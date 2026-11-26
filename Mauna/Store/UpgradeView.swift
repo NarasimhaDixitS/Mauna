@@ -124,7 +124,7 @@ struct UpgradeView: View {
 
     private var headline: String {
         if afterOnboarding {
-            return "Your quiet apps are ready. Free runs two of them; try everything free for 14 days."
+            return "Your quiet apps are ready. Free runs two of them; try everything free for 7 days."
         }
         return switch feature {
         case .moreRules: "Free keeps two rules. Pro quiets music for every app you use."
@@ -227,7 +227,7 @@ struct UpgradeView: View {
         let button = Button { if let trial = store.trial { Task { await buy(trial, trial: true) } } } label: {
             HStack(spacing: 8) {
                 if busy == .trial { ProgressView().controlSize(.small).tint(primary ? Color.onAccent : nil) }
-                Text("Try Pro free for 14 days")
+                Text("Try Pro free for 7 days")
             }
             .frame(maxWidth: .infinity)
         }

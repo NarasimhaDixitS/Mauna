@@ -75,7 +75,12 @@ final class RuleCoordinator {
         self.isEnabled = defaults.object(forKey: Keys.enabled) as? Bool ?? true
         self.engine = RuleEngine(rules: [])
 
-        watcher.onChange = { [weak self] snapshot in self?.update(snapshot) }
+        watcher.onChange = { [weak self] snapshot in
+            #if DEBUG
+            if self?.isStaged == true { return }
+            #endif
+            self?.update(snapshot)
+        }
         watcher.onAwayChange = { [weak self] away in
             guard let self else { return }
             isAway = away
@@ -141,6 +146,13 @@ final class RuleCoordinator {
     func showPreviewRules(_ preview: [Rule]) {
         rules = preview
         pushRules()
+    }
+
+    /// Design renders: act as if these apps were open, in front and in a call. The real Mac is ignored.
+    private var isStaged = false
+    func stage(_ snapshot: AppSnapshot) {
+        isStaged = true
+        update(snapshot)
     }
     #endif
 

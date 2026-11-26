@@ -75,11 +75,22 @@ struct PopoverView: View {
             Spacer(minLength: 0)
 
             // Master switch in the header, like Wi-Fi in Control Center. Native control, accent tint.
-            Toggle("Mauna", isOn: Binding(get: { model.rules.isEnabled }, set: { model.rules.isEnabled = $0 }))
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .tint(.accentFill)
-                .accessibilityLabel("Mauna on")
+            if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] != nil {
+                // Renders can't draw the native switch: the same switch, drawn.
+                Capsule().fill(LinearGradient.accentFill)
+                    .frame(width: 38, height: 22)
+                    .overlay(alignment: .trailing) {
+                        Circle().fill(.white).frame(width: 19, height: 19)
+                            .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+                            .padding(.trailing, 1.5)
+                    }
+            } else {
+                Toggle("Mauna", isOn: Binding(get: { model.rules.isEnabled }, set: { model.rules.isEnabled = $0 }))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .tint(.accentFill)
+                    .accessibilityLabel("Mauna on")
+            }
         }
     }
 

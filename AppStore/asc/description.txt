@@ -1,0 +1,33 @@
+Join a call, start a film, open a game: your music steps aside on its own, then comes back when you're done.
+
+Mauna lives in your Mac's menu bar. Choose the apps that need quiet, and Mauna pauses or lowers your music while you use them. No more scrambling for the pause key when a call rings, and no more forgetting to press play afterwards.
+
+HOW IT WORKS
+• Pick an app, and pick when it quiets your music: while it's in front, while you're in a call, or the whole time it's open.
+• Pick what happens: pause, or lower the volume so the music keeps playing softly.
+• Mauna fades your music out and back in, gently, at the volume you like.
+
+MADE FOR CALLS
+"In a call" knows when a call app is actually in a call, not just open. Your music pauses when Zoom, FaceTime, Teams, Slack or Discord takes the microphone, even while you work in another app, and resumes when the call ends.
+
+WORKS WITH YOUR PLAYER
+• Apple Music
+• Spotify
+• YouTube Music in Google Chrome or Safari (Mauna Pro)
+Switch players any time from the menu bar.
+
+THOUGHTFUL TOUCHES
+• Suggested apps on first launch: calls, films, games, editors and presentations, ready to tick.
+• Rules sort themselves into groups you can fold, with search for long lists.
+• A quiet shortcut pauses your music from anywhere, and brings it back.
+• Play and pause, volume and the player switch, right in the menu bar.
+
+PRIVATE BY DESIGN
+Mauna runs entirely on your Mac. No account, no analytics, no tracking. It never reads what you listen to, and it never listens to your microphone; it only checks whether an app is using it.
+
+FREE AND PRO
+Free gives you two rules with "In front", pause, Apple Music and Spotify, and the quiet shortcut.
+
+Mauna Pro is a single purchase, yours for life: unlimited rules, the "In a call" and "Running" triggers, lowering instead of pausing, YouTube Music in Chrome and Safari, and your own fade time. Try every Pro feature free for 7 days. No subscription, ever.
+
+Requires macOS 14.2 or later.

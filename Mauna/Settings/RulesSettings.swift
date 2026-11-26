@@ -175,9 +175,15 @@ private struct SearchField: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.tertiary)
-            TextField(prompt, text: $text)
-                .textFieldStyle(.plain)
-                .focused($focused)
+            if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] != nil {
+                // Renders can't draw a text field: its empty look, drawn.
+                Text(prompt).foregroundStyle(.tertiary)
+                Spacer(minLength: 0)
+            } else {
+                TextField(prompt, text: $text)
+                    .textFieldStyle(.plain)
+                    .focused($focused)
+            }
             if !text.isEmpty {
                 Button { text = "" } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)

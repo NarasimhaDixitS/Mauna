@@ -32,7 +32,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         var tabs: [SettingsTab] = [.players, .rules, .sound, .general]
         if Store.sellsInApp { tabs.append(.pro) }
         #if DEBUG
-        tabs.append(.debug)
+        // Staged App Store screenshots show Settings as customers see it.
+        if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_STAGE"] == nil { tabs.append(.debug) }
         #endif
         return tabs
     }
@@ -128,7 +129,7 @@ private struct DebugSettings: View {
         let store = model.store
         switch choice {
         case "free": store.preview(.free, trialTaken: false)
-        case "trial": store.preview(.trial(endsAt: .now.addingTimeInterval(9 * 86_400 - 60)), trialTaken: true)
+        case "trial": store.preview(.trial(endsAt: .now.addingTimeInterval(5 * 86_400 - 60)), trialTaken: true)
         case "ended": store.preview(.free, trialTaken: true)
         case "pro": store.preview(.pro)
         default: Task { await store.endPreview() }

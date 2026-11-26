@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import StoreKit
 
-/// Mauna Pro through the Mac App Store: one purchase, plus a free 14-day trial taken as a $0 purchase
+/// Mauna Pro through the Mac App Store: one purchase, plus a free 7-day trial taken as a $0 purchase
 /// (Apple's way to offer a trial on a one-time purchase). Prices come from the App Store, in the
 /// customer's own currency. While testing, Xcode answers from AppStore/Mauna.storekit.
 ///

@@ -10,7 +10,7 @@ nonisolated enum Plan: Equatable, Sendable {
     /// Pro features are on: bought, or during the trial.
     var unlocksPro: Bool { self != .free }
 
-    /// The plan from what's been bought. The trial is a free in-app purchase: 14 days from when you took it.
+    /// The plan from what's been bought. The trial is a free in-app purchase: 7 days from when you took it.
     static func current(ownsPro: Bool, trialStartedAt: Date?, now: Date) -> Plan {
         if ownsPro { return .pro }
         if let start = trialStartedAt {
@@ -36,7 +36,7 @@ nonisolated enum ProFeature: String, Sendable, CaseIterable, Identifiable {
 nonisolated enum Entitlement {
     /// Free: two rules, "In front", Pause.
     static let freeRuleLimit = 2
-    static let trialLength: TimeInterval = 14 * 86_400
+    static let trialLength: TimeInterval = 7 * 86_400
 
     /// A rule Free can run: "In front", Pause.
     static func fitsFree(_ rule: Rule) -> Bool {

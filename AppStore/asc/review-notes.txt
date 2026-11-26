@@ -1,0 +1,27 @@
+Thank you for reviewing Mauna. It is a menu bar app with no Dock icon: after launch, click the wave icon in the menu bar to open it. No account or sign-in is needed.
+
+WHAT IT DOES
+Mauna pauses or lowers the user's music while apps they choose are in use, then restores it. Onboarding suggests apps; Settings › Rules lists them.
+
+HOW TO TEST
+1. Launch Mauna and finish the three onboarding steps. Choose Apple Music as the player.
+2. Play a song in Apple Music. When macOS asks whether Mauna may control Music, click OK.
+3. Add a rule for TextEdit (Settings › Rules › Add App…), trigger "In front", action Pause.
+4. Bring TextEdit to the front: the music fades out and pauses. Switch to another app: it fades back in.
+5. "In a call" (Pro, or during the free trial): with a FaceTime call active, music pauses even when FaceTime is not in front.
+
+APPLE EVENTS
+Mauna sends Apple Events only to control the music player the user picked: play, pause, read whether it is playing, and set its volume.
+• Apple Music and Spotify: through their scripting access groups (com.apple.Music.playback, com.spotify.playback).
+• YouTube Music in Google Chrome or Safari: through a temporary exception for com.google.Chrome and com.apple.Safari. These browsers offer no scripting access group for running JavaScript in a tab, which is the only way to pause, resume and lower YouTube Music. The script touches only the YouTube Music tab's media element: play, pause and volume. It reads nothing from the page, other tabs, or browsing history. The user turns this on themselves (View › Developer › Allow JavaScript from Apple Events) and Mauna shows them how.
+
+MICROPHONE
+Mauna does not record or access audio. For "In a call" it reads Core Audio's per-process flags (kAudioProcessPropertyIsRunningInput and IsRunningOutput) to know whether a call app is using the microphone or playing sound. No microphone permission is requested because no audio is captured.
+
+IN-APP PURCHASES
+• Mauna Pro (in.throttlelabs.mauna.pro): non-consumable, unlocks all features for life.
+• 7-Day Free Trial (in.throttlelabs.mauna.trial): a free non-consumable that starts a 7-day trial of every Pro feature, following Apple's guidance for free trials of paid features. After 7 days the app returns to the free plan; nothing is charged and nothing is deleted.
+Both are offered in Settings › Mauna Pro, in the Mauna Pro window, and at the end of onboarding. Restore Purchase is in Settings › Mauna Pro.
+
+PRIVACY
+Mauna collects no data and has no server. Its only network use is StoreKit.

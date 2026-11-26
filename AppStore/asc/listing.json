@@ -1,0 +1,60 @@
+{
+  "bundleId": "in.throttlelabs.mauna",
+  "version": "1.0",
+  "build": "1",
+  "locale": "en-US",
+  "appInfo": {
+    "name": "Mauna: Music Concierge",
+    "subtitle": "Auto-quiet for calls & films",
+    "privacyPolicyUrl": "https://narasimhadixits.github.io/mauna/privacy.html",
+    "primaryCategory": "MUSIC",
+    "secondaryCategory": "PRODUCTIVITY"
+  },
+  "version_localization": {
+    "promotionalText": "Join a call, start a film, open a game: Mauna pauses or lowers your music by itself, then brings it back. Try every Pro feature free for 7 days.",
+    "keywords": "pause,mute,meeting,zoom call,focus,volume,lower,fade,automatic,menu bar,video,game,dnd,silence",
+    "supportUrl": "https://narasimhadixits.github.io/mauna/support.html",
+    "marketingUrl": "https://narasimhadixits.github.io/mauna/",
+    "descriptionFile": "description.txt",
+    "whatsNew": ""
+  },
+  "screenshots": {
+    "displayType": "APP_DESKTOP",
+    "files": [
+      "AppStore/Screenshots/1-hero.png",
+      "AppStore/Screenshots/2-calls.png",
+      "AppStore/Screenshots/3-rules.png",
+      "AppStore/Screenshots/4-players.png",
+      "AppStore/Screenshots/5-sound.png",
+      "AppStore/Screenshots/6-pro.png"
+    ]
+  },
+  "review": {
+    "notesFile": "review-notes.txt",
+    "demoAccountRequired": false
+  },
+  "iaps": [
+    {
+      "productId": "in.throttlelabs.mauna.pro",
+      "referenceName": "Mauna Pro",
+      "type": "NON_CONSUMABLE",
+      "familySharable": false,
+      "price": 9.99,
+      "displayName": "Mauna Pro",
+      "description": "Every rule, trigger and player, for life.",
+      "reviewNote": "Unlocks unlimited rules, the In a call and Running triggers, lowering music instead of pausing, YouTube Music in Chrome and Safari, and a custom fade time. Open Settings › Mauna Pro, or click Get Pro at the bottom of the menu bar popover. Restore Purchase is in Settings › Mauna Pro.",
+      "reviewScreenshot": "AppStore/asc/iap-review.png"
+    },
+    {
+      "productId": "in.throttlelabs.mauna.trial",
+      "referenceName": "7-Day Free Trial",
+      "type": "NON_CONSUMABLE",
+      "familySharable": false,
+      "price": 0,
+      "displayName": "7-Day Free Trial",
+      "description": "Try everything in Mauna Pro free for 7 days.",
+      "reviewNote": "A free non-consumable that starts a 7-day trial of every Mauna Pro feature, as Apple recommends for free trials of paid features. After 7 days the app returns to the free plan; nothing is charged. Offered in Settings › Mauna Pro and in the Mauna Pro window (Try Pro free for 7 days).",
+      "reviewScreenshot": "AppStore/asc/iap-review.png"
+    }
+  ]
+}

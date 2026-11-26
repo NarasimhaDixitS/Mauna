@@ -128,10 +128,35 @@ enum DesignSnapshot {
             if let front, ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_FRONT_FREE"] == nil { demo.append(Rule(bundleID: front.0, appName: front.1, trigger: .inFront, action: .paused)) }
             model.rules.showPreviewRules(demo)
         }
+        // MAUNA_SNAPSHOT_STAGE=focus|call: App Store screenshots. A typical set of rules, Apple Music
+        // playing, and the Mac staged: Xcode in front (music lowered), or a Zoom call (music paused).
+        if let scene = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_STAGE"] {
+            let staged: [Rule] = [
+                Rule(bundleID: "us.zoom.xos", appName: "Zoom", trigger: .usingMicOrSound, action: .paused),
+                Rule(bundleID: "com.apple.FaceTime", appName: "FaceTime", trigger: .usingMicOrSound, action: .paused),
+                Rule(bundleID: "com.apple.TV", appName: "TV", trigger: .inFront, action: .paused),
+                Rule(bundleID: "com.apple.QuickTimePlayerX", appName: "QuickTime Player", trigger: .inFront, action: .paused),
+                Rule(bundleID: "org.videolan.vlc", appName: "VLC", trigger: .inFront, action: .paused),
+                Rule(bundleID: "com.apple.Chess", appName: "Chess", trigger: .running, action: .paused),
+                Rule(bundleID: "com.apple.garageband10", appName: "GarageBand", trigger: .inFront, action: .paused),
+                Rule(bundleID: "com.apple.iWork.Keynote", appName: "Keynote", trigger: .inFront, action: .paused),
+                Rule(bundleID: "com.apple.dt.Xcode", appName: "Xcode", trigger: .inFront, action: .ducked),
+                Rule(bundleID: "com.apple.iWork.Pages", appName: "Pages", trigger: .inFront, action: .ducked),
+                Rule(bundleID: "com.apple.Notes", appName: "Notes", trigger: .inFront, action: .ducked),
+            ]
+            model.session.select(.appleMusic)
+            model.rules.showPreviewRules(staged)
+            let call = scene == "call"
+            model.session.stage(playback: call ? .paused : .playing, volume: call ? 0.7 : 0.32)
+            model.rules.stage(AppSnapshot(
+                frontmost: call ? "com.apple.finder" : "com.apple.dt.Xcode",
+                running: ["com.apple.dt.Xcode", "com.apple.Notes", "us.zoom.xos", "com.apple.Music"],
+                usingAudio: call ? ["us.zoom.xos"] : []))
+        }
         // MAUNA_SNAPSHOT_PLAN=free|trial|pro renders on that plan.
         switch ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_PLAN"] {
         case "free": model.store.preview(.free)
-        case "trial": model.store.preview(.trial(endsAt: .now.addingTimeInterval(9 * 86_400 - 60)))
+        case "trial": model.store.preview(.trial(endsAt: .now.addingTimeInterval(5 * 86_400 - 60)))
         case "pro": model.store.preview(.pro)
         default: break
         }
@@ -174,7 +199,7 @@ enum DesignSnapshot {
         _ = host
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             let renderer = ImageRenderer(content: view)
-            renderer.scale = 2
+            renderer.scale = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_SCALE"].flatMap(Double.init) ?? 2   // 3 for App Store screenshots
             if let image = renderer.nsImage, let tiff = image.tiffRepresentation,
                let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
                 try? png.write(to: URL(fileURLWithPath: path))

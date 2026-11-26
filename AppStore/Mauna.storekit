@@ -25,13 +25,13 @@
       "internalID" : "6740000002",
       "localizations" : [
         {
-          "description" : "Try everything in Mauna Pro free for 14 days.",
-          "displayName" : "14-Day Free Trial",
+          "description" : "Try everything in Mauna Pro free for 7 days.",
+          "displayName" : "7-Day Free Trial",
           "locale" : "en_US"
         }
       ],
       "productID" : "in.throttlelabs.mauna.trial",
-      "referenceName" : "14-Day Free Trial",
+      "referenceName" : "7-Day Free Trial",
       "type" : "NonConsumable"
     }
   ],

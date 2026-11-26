@@ -125,6 +125,16 @@ final class PlayerSession {
     #if DEBUG
     /// Design renders: rules decide, but nothing is sent to the player.
     var dryRun = false
+
+    /// Design renders: the player looks open and playing at this volume, whatever it really is.
+    private var isStaged = false
+    func stage(playback: PlaybackState, volume: Double) {
+        dryRun = true
+        isStaged = true
+        isRunning = true
+        self.playback = playback
+        self.volume = volume
+    }
     #endif
 
     func select(_ player: PlayerID) {
@@ -360,6 +370,9 @@ final class PlayerSession {
 
     /// Re-reads the player's state and volume.
     func refresh() {
+        #if DEBUG
+        if isStaged { return }
+        #endif
         isRunning = player.isRunning
         guard isRunning else {
             playback = nil
@@ -373,6 +386,9 @@ final class PlayerSession {
                 let state = try await controller.state()
                 let volume = try await controller.volume()
                 guard let self, controller.player == self.player else { return }
+                #if DEBUG
+                if self.isStaged { return }
+                #endif
                 self.playback = state
                 if !self.isFading { self.volume = volume }
                 if self.issue?.needsSetup == true { self.issue = nil }
@@ -428,6 +444,9 @@ final class PlayerSession {
     // MARK: Observing the player
 
     private func playerQuit() {
+        #if DEBUG
+        if isStaged { return }
+        #endif
         isRunning = false
         playback = nil
         volume = nil
@@ -437,6 +456,9 @@ final class PlayerSession {
 
     /// A new playback state from the player (notification or browser check).
     private func received(_ state: PlaybackState) {
+        #if DEBUG
+        if isStaged { return }
+        #endif
         // Mauna finished pausing, and now it plays: the user pressed play. Respect it.
         if hold == .paused, playback == .paused, state == .playing, !isFading {
             hold = .none
