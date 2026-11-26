@@ -2,10 +2,13 @@ import SwiftUI
 
 /// Normal volume, fade time and lowered volume. Changes apply at once and are saved.
 struct SoundSettings: View {
-    @Bindable var session: PlayerSession
+    let model: AppModel
+    private var session: PlayerSession { model.session }
 
     var body: some View {
-        SettingsPage(symbol: "speaker.wave.2.fill", title: "Sound", subtitle: "How loud your music plays, and how gently it steps aside.") {
+        @Bindable var session = session
+        let pro = model.unlocksPro
+        return SettingsPage(symbol: "speaker.wave.2.fill", title: "Sound", subtitle: "How loud your music plays, and how gently it steps aside.") {
             SettingsCard {
                 SettingsRow {
                     SoundSlider(title: "Normal volume", detail: "Music always comes back to this level.",
@@ -15,17 +18,19 @@ struct SoundSettings: View {
                 SettingsRow {
                     VStack(alignment: .leading, spacing: 12) {
                         SoundSlider(title: "Fade time", detail: "Fading back in takes a little longer, so music returns gently.",
-                                    value: $session.fadeTime, range: 0...5, step: 0.1,
+                                    value: pro ? $session.fadeTime : .constant(AudioTiming.fadeOut), range: 0...5, step: 0.1,
                                     text: { "\($0.formatted(.number.precision(.fractionLength(1)))) s" },
                                     lowIcon: "hare", highIcon: "tortoise",
-                                    spoken: { "\($0.formatted(.number.precision(.fractionLength(1)))) seconds" })
-                        FadeCurve(fadeOut: session.fadeTime)
+                                    spoken: { "\($0.formatted(.number.precision(.fractionLength(1)))) seconds" },
+                                    proFeature: pro ? nil : .customFade, upgrade: { model.showUpgrade(for: $0) })
+                        FadeCurve(fadeOut: pro ? session.fadeTime : AudioTiming.fadeOut)
                     }
                 }
                 SettingsRow(showsDivider: false) {
                     SoundSlider(title: "Lowered volume", detail: "When a rule lowers music, it plays at this share of normal.",
                                 value: $session.duckLevel, range: 0.05...0.6, step: 0.05,
-                                text: { "\(Int(($0 * 100).rounded()))%" }, lowIcon: "speaker.fill", highIcon: "speaker.wave.1.fill")
+                                text: { "\(Int(($0 * 100).rounded()))%" }, lowIcon: "speaker.fill", highIcon: "speaker.wave.1.fill",
+                                proFeature: pro ? nil : .lower, upgrade: { model.showUpgrade(for: $0) })
                 }
             }
         }
@@ -42,12 +47,22 @@ private struct SoundSlider: View {
     let lowIcon: String
     let highIcon: String
     var spoken: ((Double) -> String)?
+    /// Set on Free: the slider rests, and its PRO badge opens Mauna Pro.
+    var proFeature: ProFeature? = nil
+    var upgrade: (ProFeature) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.body.weight(.medium))
+                    HStack(spacing: 6) {
+                        Text(title).font(.body.weight(.medium))
+                        if let proFeature {
+                            Button { upgrade(proFeature) } label: { ProBadge() }
+                                .buttonStyle(PlainTextButtonStyle())
+                                .help("Part of Mauna Pro")
+                        }
+                    }
                     Text(detail).font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -61,7 +76,14 @@ private struct SoundSlider: View {
                 Image(systemName: lowIcon).frame(width: 18)
                 MaunaSlider(value: $value, range: range, step: step, spokenValue: spoken)
                     .accessibilityLabel(title)
+                    .disabled(proFeature != nil)
                 Image(systemName: highIcon).frame(width: 18)
+            }
+            .opacity(proFeature != nil ? 0.5 : 1)
+            .overlay {
+                if let proFeature {
+                    Color.clear.contentShape(Rectangle()).onTapGesture { upgrade(proFeature) }
+                }
             }
             .font(.system(size: 11))
             .foregroundStyle(.tertiary)

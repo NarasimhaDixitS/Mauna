@@ -4,7 +4,8 @@ import Foundation
 nonisolated enum Trigger: String, Codable, CaseIterable, Sendable {
     /// Pauses while the app is the active app. Xcode, Figma, writing apps, video players.
     case inFront
-    /// Pauses while the app uses the mic or plays sound. Zoom, Teams, Meet. Arrives in v1.1.
+    /// "In a call": pauses while the app is using the microphone. Zoom, Teams, FaceTime, Meet in Chrome.
+    /// (Stored as "usingMicOrSound", its original name, so saved rules keep loading.)
     case usingMicOrSound
     /// Pauses from launch until it quits. Games, full-screen tools.
     case running
@@ -12,7 +13,7 @@ nonisolated enum Trigger: String, Codable, CaseIterable, Sendable {
     var name: String {
         switch self {
         case .inFront:         "In front"
-        case .usingMicOrSound: "Using mic or sound"
+        case .usingMicOrSound: "In a call"
         case .running:         "Running"
         }
     }
@@ -21,7 +22,7 @@ nonisolated enum Trigger: String, Codable, CaseIterable, Sendable {
     var badge: String {
         switch self {
         case .inFront:         "Front"
-        case .usingMicOrSound: "Mic"
+        case .usingMicOrSound: "Call"
         case .running:         "Running"
         }
     }
@@ -48,18 +49,20 @@ nonisolated struct Rule: Identifiable, Codable, Hashable, Sendable {
 }
 
 extension Rule {
-    /// The triggers v1 offers. "Using mic or sound" arrives in v1.1.
-    static let availableTriggers: [Trigger] = [.inFront, .running]
+    /// The triggers Mauna offers.
+    static let availableTriggers: [Trigger] = [.inFront, .usingMicOrSound, .running]
 
-    /// Call apps, until the mic trigger arrives in v1.1. "In front" would resume music mid-call.
+    /// Apps you make calls in. They get "In a call": they sit open all day, but quiet music only on a call.
     static let callApps: Set<String> = [
         "us.zoom.xos", "com.microsoft.teams", "com.microsoft.teams2", "com.apple.FaceTime",
         "com.cisco.webexmeetingsapp", "Cisco-Systems.Spark", "com.webex.meetingmanager",
+        "com.tinyspeck.slackmacgap", "com.hnc.Discord", "com.skype.skype", "net.whatsapp.WhatsApp",
+        "desktop.WhatsApp",
     ]
 
-    /// Spec › Smart default: call apps and games get "Running", everything else "In front".
+    /// Spec › Smart default: call apps get "In a call", games "Running", everything else "In front".
     static func suggestedTrigger(bundleID: String, category: String?) -> Trigger {
-        if callApps.contains(bundleID) { return .running }
+        if callApps.contains(bundleID) { return .usingMicOrSound }
         if let category, category.contains("games") { return .running }
         return .inFront
     }
@@ -81,6 +84,49 @@ extension Rule {
 nonisolated struct AppSnapshot: Equatable, Sendable {
     var frontmost: String?
     var running: Set<String> = []
-    /// Apps using the mic or playing sound (v1.1).
+    /// Apps in a call right now: using the mic, or playing sound for a while (see `inCall`).
     var usingAudio: Set<String> = []
+}
+
+extension AppSnapshot {
+    /// System services that use the mic on an app's behalf: FaceTime's call audio runs in avconferenced.
+    static let micServices: [String: String] = [
+        "com.apple.avconferenced": "com.apple.FaceTime",
+    ]
+
+    /// The apps a mic-using process counts for: itself, the app a helper belongs to
+    /// ("com.google.Chrome.helper" counts for Chrome), or the app a system service works for.
+    static func micOwners(of bundleID: String, running: [String]) -> Set<String> {
+        var owners: Set<String> = [bundleID]
+        if let app = micServices[bundleID] { owners.insert(app) }
+        for app in running where bundleID.hasPrefix(app + ".") { owners.insert(app) }
+        return owners
+    }
+
+    /// Apps whose sound alone never means a call: browsers and music players, whose sound is usually
+    /// music (YouTube Music in Chrome must never count as Chrome being in a call). The mic still counts.
+    static let soundIsUsuallyMusic: Set<String> = [
+        "com.google.Chrome", "com.apple.Safari", "company.thebrowser.Browser", "org.mozilla.firefox",
+        "com.microsoft.edgemac", "com.brave.Browser", "com.operasoftware.Opera", "com.vivaldi.Vivaldi",
+        "com.spotify.client", "com.apple.Music",
+    ]
+
+    /// Who's in a call right now:
+    /// - every app using the mic, and
+    /// - every app that has been playing sound for at least `minimumSound` seconds. A muted call keeps
+    ///   playing the other people (Zoom lets go of the mic while you're muted); a notification ding
+    ///   is over in a second or two.
+    static func inCall(mic: Set<String>, soundSince: [String: TimeInterval], now: TimeInterval,
+                       minimumSound: TimeInterval = AudioTiming.shortSoundIgnore) -> Set<String> {
+        var apps = mic
+        for (app, since) in soundSince where now - since >= minimumSound && !soundIsUsuallyMusic.contains(app) {
+            apps.insert(app)
+        }
+        return apps
+    }
+
+    /// Call apps whose old "Running" rules should become "In a call" (one-time, see RuleCoordinator).
+    static func callRulesToMove(_ rules: [Rule]) -> [Rule.ID] {
+        rules.filter { Rule.callApps.contains($0.bundleID) && $0.trigger == .running }.map(\.id)
+    }
 }

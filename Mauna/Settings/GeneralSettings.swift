@@ -4,10 +4,15 @@ import SwiftUI
 
 /// Launch at login and the quiet shortcut.
 struct GeneralSettings: View {
+    let model: AppModel
     @AppStorage(QuietShortcut.Mode.storageKey) private var mode: QuietShortcut.Mode = .pause
 
     var body: some View {
         SettingsPage(symbol: "gearshape.fill", title: "General", subtitle: "Startup and the quiet shortcut.") {
+            if Store.sellsInApp {
+                ProPlanCard(model: model)
+            }
+
             SettingsCard {
                 SettingsRow(showsDivider: false) {
                     LaunchAtLoginToggle()
@@ -88,5 +93,76 @@ private struct LaunchAtLoginToggle: View {
             failed = true
         }
         status = SMAppService.mainApp.status
+    }
+}
+
+/// Your plan, at the top of General: Free, the trial with days left, or Pro. One button to see Pro,
+/// and Restore Purchase for a new Mac.
+private struct ProPlanCard: View {
+    let model: AppModel
+    @State private var restoring = false
+    @State private var note: String?
+
+    private var plan: Plan { model.store.plan }
+
+    var body: some View {
+        SettingsCard {
+            SettingsRow(showsDivider: false) {
+                HStack(spacing: 14) {
+                    StatusTile(state: plan.unlocksPro ? .playing : .paused, isActing: plan.unlocksPro, size: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title).font(.body.weight(.semibold))
+                        Text(note ?? detail)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    if plan != .pro {
+                        VStack(alignment: .trailing, spacing: 6) {
+                            Button("See Mauna Pro") { model.showUpgrade(for: nil) }
+                                .buttonStyle(.maunaPrimary)
+                                .fixedSize()
+                            Button(restoring ? "Restoring…" : "Restore Purchase") { restore() }
+                                .buttonStyle(PlainTextButtonStyle())
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .disabled(restoring)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var title: String {
+        switch plan {
+        case .pro: "Mauna Pro"
+        case .trial: "Mauna Pro trial"
+        case .free: "Mauna Free"
+        }
+    }
+
+    private var detail: String {
+        switch plan {
+        case .pro: return "Everything is unlocked. Thank you for supporting Mauna."
+        case .trial:
+            let days = plan.trialDaysLeft(now: .now) ?? 1
+            return "\(days) \(days == 1 ? "day" : "days") left. Afterwards your first two simple rules keep working; nothing is deleted."
+        case .free: return "Two rules, \u{201C}In front\u{201D} only. Pro unlocks every rule, trigger and player."
+        }
+    }
+
+    private func restore() {
+        restoring = true
+        Task {
+            let outcome = await model.store.restore()
+            restoring = false
+            switch outcome {
+            case .unlocked: note = "Restored. Everything is unlocked."
+            case .failed(let text): note = text
+            case .cancelled, .pending: break
+            }
+        }
     }
 }

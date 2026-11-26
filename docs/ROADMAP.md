@@ -25,7 +25,7 @@ The rule engine is plain Swift with unit tests, so edge cases (debounce, overlap
 
 ## After v1 (from the spec)
 
-- **v1.1:** "Using mic or sound" trigger (Core Audio), duck per rule, snooze, pause on lock, shortcut hold mode, auto-restore.
+- **v1.1:** duck per rule, snooze, pause on lock, shortcut hold mode, auto-restore.
 - **v2:** Companion browser extension, more players (VLC, Deezer, Tidal, SoundCloud), simple schedules.
 
 ## Decisions

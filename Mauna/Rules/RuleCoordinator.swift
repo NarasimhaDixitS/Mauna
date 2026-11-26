@@ -25,6 +25,11 @@ final class RuleCoordinator {
             pushRules(activatingNow: isEnabled ? Set(allRules.map(\.id)) : [])
         }
     }
+    /// Your plan. On Free, rules past the limit rest: kept, shown with a note, never acting.
+    var plan: Plan = .pro {
+        didSet { if plan != oldValue { pushRules(activatingNow: Set(allRules.map(\.id))) } }
+    }
+
     /// The app in front, as rules see it (never Mauna itself).
     private(set) var frontmost: String?
     /// Apps running now. The popover lists rules for open apps first.
@@ -35,15 +40,38 @@ final class RuleCoordinator {
     @ObservationIgnored private let session: PlayerSession
     @ObservationIgnored private var timer: Task<Void, Never>?
 
+    /// Call apps moved from "Running" to "In a call" on update, until you've seen the note.
+    private(set) var movedCallApps: [String]
+
+    func dismissMovedCallNote() {
+        movedCallApps = []
+        UserDefaults.standard.removeObject(forKey: Keys.movedCallNote)
+    }
+
     private enum Keys {
         static let rules = "rules"
         static let enabled = "isEnabled"
+        static let movedCallApps = "movedCallAppsToInACall"
+        static let movedCallNote = "movedCallAppsNote"
     }
 
     init(session: PlayerSession) {
         self.session = session
         let defaults = UserDefaults.standard
-        self.rules = defaults.data(forKey: Keys.rules).flatMap { try? JSONDecoder().decode([Rule].self, from: $0) } ?? []
+        var saved = defaults.data(forKey: Keys.rules).flatMap { try? JSONDecoder().decode([Rule].self, from: $0) } ?? []
+        // One time: call apps set to "Running" become "In a call". They quiet music during calls,
+        // not all day. A note in Settings › Rules says so once.
+        if !defaults.bool(forKey: Keys.movedCallApps) {
+            let move = Set(AppSnapshot.callRulesToMove(saved))
+            if !move.isEmpty {
+                for index in saved.indices where move.contains(saved[index].id) { saved[index].trigger = .usingMicOrSound }
+                defaults.set(saved.filter { move.contains($0.id) }.map(\.appName), forKey: Keys.movedCallNote)
+                if let data = try? JSONEncoder().encode(saved) { defaults.set(data, forKey: Keys.rules) }
+            }
+            defaults.set(true, forKey: Keys.movedCallApps)
+        }
+        self.rules = saved
+        self.movedCallApps = defaults.stringArray(forKey: Keys.movedCallNote) ?? []
         self.isEnabled = defaults.object(forKey: Keys.enabled) as? Bool ?? true
         self.engine = RuleEngine(rules: [])
 
@@ -116,6 +144,17 @@ final class RuleCoordinator {
     }
     #endif
 
+    /// Rules resting on this plan (Free past the limit, or needing a Pro feature).
+    var restingIDs: Set<Rule.ID> { Entitlement.resting(rules, plan: plan) }
+    func isResting(_ rule: Rule) -> Bool { restingIDs.contains(rule.id) }
+
+    /// What the engine acts on: enabled saved rules that aren't resting, plus quick rules.
+    private var actingRules: [Rule] {
+        guard isEnabled else { return [] }
+        let resting = restingIDs
+        return rules.filter { !resting.contains($0.id) } + quickRules
+    }
+
     func hasRule(for bundleID: String) -> Bool { allRules.contains { $0.bundleID == bundleID } }
     func isQuick(_ rule: Rule) -> Bool { quickRules.contains { $0.id == rule.id } }
 
@@ -131,7 +170,7 @@ final class RuleCoordinator {
     }
 
     private func pushRules(activatingNow: Set<Rule.ID> = []) {
-        engine.setRules(isEnabled ? allRules : [], snapshot: watcher.snapshot, now: Self.now, activatingNow: activatingNow)
+        engine.setRules(actingRules, snapshot: watcher.snapshot, now: Self.now, activatingNow: activatingNow)
         publish()
         scheduleNext()
     }
@@ -143,7 +182,7 @@ final class RuleCoordinator {
         let ended = quickRules.filter { !snapshot.running.contains($0.bundleID) }
         if !ended.isEmpty {
             quickRules.removeAll { rule in ended.contains { $0.id == rule.id } }
-            engine.setRules(isEnabled ? allRules : [], snapshot: snapshot, now: Self.now)
+            engine.setRules(actingRules, snapshot: snapshot, now: Self.now)
         } else {
             engine.update(snapshot, now: Self.now)
         }

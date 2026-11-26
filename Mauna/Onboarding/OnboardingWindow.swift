@@ -16,8 +16,7 @@ enum OnboardingWindow {
 
     static func show(model: AppModel) {
         if let window {
-            window.makeKeyAndOrderFront(nil)
-            NSApplication.shared.activate()
+            WindowFront.show(window)
             return
         }
         let view = OnboardingView(model: model) {
@@ -36,8 +35,7 @@ enum OnboardingWindow {
         window.contentView = NSHostingView(rootView: view)
         window.center()
         self.window = window
-        window.makeKeyAndOrderFront(nil)
-        NSApplication.shared.activate()
+        WindowFront.show(window)
     }
 
     static func close() {

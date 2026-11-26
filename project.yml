@@ -73,9 +73,13 @@ targets:
     sources:
       - path: Mauna
         excludes: ["Info.plist", "*.entitlements"]
+      # Local StoreKit testing: Xcode answers purchases from this file, no App Store Connect needed.
+      - path: AppStore/Mauna.storekit
+        buildPhase: none
     dependencies:
       - package: KeyboardShortcuts
-    scheme: {}
+    scheme:
+      storeKitConfiguration: AppStore/Mauna.storekit
     info:
       path: AppStore/Info.plist
       properties:
@@ -111,6 +115,7 @@ targets:
       - path: Mauna/Rules/QuietShortcut.swift
       - path: Mauna/Rules/Suggestions.swift
       - path: Mauna/DesignSystem/AudioTiming.swift
+      - path: Mauna/Store/Entitlement.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: in.throttlelabs.mauna.tests

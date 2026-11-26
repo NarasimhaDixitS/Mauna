@@ -1,0 +1,53 @@
+{
+  "identifier" : "6C3B1A0E",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : true,
+      "internalID" : "6740000001",
+      "localizations" : [
+        {
+          "description" : "Unlimited rules, every trigger, Lower, YouTube Music and your own fade. Yours for good.",
+          "displayName" : "Mauna Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "in.throttlelabs.mauna.pro",
+      "referenceName" : "Mauna Pro",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.0",
+      "familyShareable" : false,
+      "internalID" : "6740000002",
+      "localizations" : [
+        {
+          "description" : "Try everything in Mauna Pro free for 14 days.",
+          "displayName" : "14-Day Free Trial",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "in.throttlelabs.mauna.trial",
+      "referenceName" : "14-Day Free Trial",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

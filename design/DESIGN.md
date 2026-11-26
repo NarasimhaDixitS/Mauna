@@ -76,4 +76,4 @@ Decide in this order: **should it animate → why → easing → duration.**
 
 - Short, plain, specific. Name the app, then the next step.
 - Sentence case. No exclamation marks, emoji, "Oops", or error codes.
-- "Lowered", not "ducked", in status text. Trigger names are always: In front · Using mic or sound · Running.
+- "Lowered", not "ducked", in status text. Trigger names are always: In front · In a call · Running. "In a call" means the app is using the microphone, or has been playing sound for 3 s or more (a muted call still plays the other people; browsers and music players count by mic only). Its glyph is `phone.fill`.

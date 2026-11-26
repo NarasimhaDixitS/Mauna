@@ -60,7 +60,22 @@ final class PlayerSession {
     var fadeTime: TimeInterval = PlayerSession.saved(Keys.fadeTime, AudioTiming.fadeOut) {
         didSet { UserDefaults.standard.set(fadeTime, forKey: Keys.fadeTime) }
     }
-    private var fadeInTime: TimeInterval { fadeTime * AudioTiming.fadeIn / AudioTiming.fadeOut }
+    /// Pro is unlocked (bought or on trial). Free: the standard fade, and YouTube Music rests.
+    var unlocksPro = true {
+        didSet {
+            guard unlocksPro != oldValue, isLocked else { return }
+            // The trial ended while Mauna held YouTube Music: hand it back.
+            manualHold = .none
+            apply(.none, animated: false)
+        }
+    }
+
+    /// YouTube Music on Free: shown, but Mauna doesn't act on it.
+    var isLocked: Bool { !unlocksPro && player.isBrowser }
+
+    /// Custom fade time is Pro. Free fades at the standard 1.2 s.
+    private var fadeOutTime: TimeInterval { unlocksPro ? fadeTime : AudioTiming.fadeOut }
+    private var fadeInTime: TimeInterval { fadeOutTime * AudioTiming.fadeIn / AudioTiming.fadeOut }
 
     /// Called when the user presses play while Mauna has the music paused.
     var onUserOverride: (() -> Void)?
@@ -203,6 +218,7 @@ final class PlayerSession {
     /// - anything → none: resume, or fade back up, to the normal volume.
     private func apply(_ target: Hold, animated: Bool = true) {
         guard target != hold else { return }
+        if isLocked && target != .none { return }   // YouTube Music on Free
         #if DEBUG
         if dryRun { hold = target; return }
         #endif
@@ -235,7 +251,7 @@ final class PlayerSession {
     private func fadeOutAndPause(_ controller: any PlayerController, state: PlaybackState) async throws {
         guard state == .playing else { return }
         let start = try await controller.volume()
-        try await fade(controller, from: start, to: 0, full: fadeTime)
+        try await fade(controller, from: start, to: 0, full: fadeOutTime)
         try await controller.pause()
         // Leave the player at its resting volume, so pressing play by hand isn't silent.
         let resting = await restingVolume(controller)
@@ -250,7 +266,7 @@ final class PlayerSession {
         switch (previousHold, state) {
         case (_, .playing):
             let start = try await controller.volume()
-            try await fade(controller, from: start, to: target, full: fadeTime)
+            try await fade(controller, from: start, to: target, full: fadeOutTime)
         case (.paused, .paused):
             try await controller.setVolume(0)
             try await controller.play()

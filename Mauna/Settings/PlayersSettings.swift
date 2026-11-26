@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Which music player Mauna controls. YouTube Music joins in Phase 5.
 struct PlayersSettings: View {
-    let session: PlayerSession
+    let model: AppModel
+    private var session: PlayerSession { model.session }
 
     var body: some View {
         SettingsPage(symbol: "music.note", title: "Players", subtitle: "The music Mauna pauses, fades and brings back.") {
@@ -10,8 +11,14 @@ struct PlayersSettings: View {
                 ForEach(Array(PlayerID.allCases.enumerated()), id: \.element) { index, player in
                     SettingsRow(showsDivider: index < PlayerID.allCases.count - 1) {
                         VStack(alignment: .leading, spacing: 12) {
-                            PlayerChoice(player: player, isSelected: session.player == player) {
-                                session.select(player)
+                            PlayerChoice(player: player, isSelected: session.player == player,
+                                         needsPro: player.isBrowser && !model.unlocksPro) {
+                                // YouTube Music is Pro: on Free, show what Pro unlocks instead.
+                                if player.isBrowser && !model.unlocksPro {
+                                    model.showUpgrade(for: .youTubeMusic)
+                                } else {
+                                    session.select(player)
+                                }
                             }
                             if player.isBrowser, session.player == player {
                                 BrowserSetupGuide(player: player, session: session)
@@ -36,6 +43,7 @@ struct PlayersSettings: View {
 private struct PlayerChoice: View {
     let player: PlayerID
     let isSelected: Bool
+    var needsPro = false
     let select: () -> Void
 
     private var statusText: String {
@@ -49,7 +57,10 @@ private struct PlayerChoice: View {
             HStack(spacing: 12) {
                 AppIconView(bundleID: player.bundleID, size: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(player.fullName).font(.body.weight(.medium))
+                    HStack(spacing: 6) {
+                        Text(player.fullName).font(.body.weight(.medium))
+                        if needsPro { ProBadge() }
+                    }
                     Text(statusText)
                         .font(.callout)
                         .foregroundStyle(.secondary)

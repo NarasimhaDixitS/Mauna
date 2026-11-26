@@ -29,7 +29,8 @@ struct RulesList: View {
         VStack(alignment: .leading, spacing: 0) {
             // A suggestion, not a rule: its own card above the list.
             if let app = model.quickRuleCandidate {
-                QuickRuleCard(app: app, coordinator: coordinator)
+                QuickRuleCard(app: app, coordinator: coordinator,
+                              upgrade: model.unlocksPro ? nil : { model.showUpgrade(for: $0) })
                     .padding(.horizontal, 4)
                     .padding(.top, 6)
                     .padding(.bottom, 2)
@@ -89,7 +90,9 @@ struct RulesList: View {
     private func rows(_ rules: [Rule], scrolls: Bool) -> some View {
         let list = VStack(spacing: 0) {
             ForEach(rules) { rule in
-                RuleRow(rule: rule, isActive: coordinator.isActive(rule), isQuick: coordinator.isQuick(rule)) {
+                RuleRow(rule: rule, isActive: coordinator.isActive(rule), isQuick: coordinator.isQuick(rule),
+                        isResting: coordinator.isResting(rule),
+                        upgrade: { model.showUpgrade(for: $0) }) {
                     coordinator.keep(rule)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -107,7 +110,9 @@ struct RulesList: View {
 
     /// Acting first, then quick rules, then apps that are open, then the rest. Your order within each.
     private var ordered: [Rule] {
+        let resting = coordinator.restingIDs
         func rank(_ rule: Rule) -> Int {
+            if resting.contains(rule.id) { return 4 }   // resting rules last, always
             if coordinator.isActive(rule) { return 0 }
             if coordinator.isQuick(rule) { return 1 }
             if coordinator.running.contains(rule.bundleID) { return 2 }
@@ -181,6 +186,8 @@ private struct IconStack: View {
 private struct QuickRuleCard: View {
     let app: AppModel.FrontApp
     let coordinator: RuleCoordinator
+    /// Set on Free: Lower is Pro, so it opens Mauna Pro.
+    var upgrade: ((ProFeature) -> Void)? = nil
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -199,8 +206,12 @@ private struct QuickRuleCard: View {
             HStack(spacing: 6) {
                 Button("Pause") { coordinator.addQuickRule(bundleID: app.bundleID, appName: app.name, action: .paused) }
                     .help("Pause music until \(app.name) quits")
-                Button("Lower") { coordinator.addQuickRule(bundleID: app.bundleID, appName: app.name, action: .ducked) }
-                    .help("Lower music until \(app.name) quits")
+                Button("Lower") {
+                    if let upgrade { upgrade(.lower) } else {
+                        coordinator.addQuickRule(bundleID: app.bundleID, appName: app.name, action: .ducked)
+                    }
+                }
+                .help(upgrade == nil ? "Lower music until \(app.name) quits" : "Lower is part of Mauna Pro")
             }
             .buttonStyle(.maunaSmall)
             .fixedSize()
@@ -227,6 +238,9 @@ private struct RuleRow: View {
     let rule: Rule
     let isActive: Bool
     let isQuick: Bool
+    /// Resting on Free: dimmed, "Resting" instead of the trigger; clicking it shows Mauna Pro.
+    var isResting = false
+    var upgrade: (ProFeature) -> Void = { _ in }
     let keep: () -> Void
     @State private var hovering = false
 
@@ -254,15 +268,28 @@ private struct RuleRow: View {
                     .help("Make it a rule")
             }
 
-            Badge(symbol: isQuick ? "hourglass" : rule.trigger.symbol, text: badgeText, isAccent: isActive,
-                  restSymbol: rule.action == .ducked ? "speaker.wave.1.fill" : nil,
-                  showsText: isActive || hovering || isQuick)
+            if isResting {
+                HStack(spacing: 5) {
+                    Text("Resting")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                    ProBadge()
+                }
+            } else {
+                Badge(symbol: isQuick ? "hourglass" : rule.trigger.symbol, text: badgeText, isAccent: isActive,
+                      restSymbol: rule.action == .ducked ? "speaker.wave.1.fill" : nil,
+                      showsText: isActive || hovering || isQuick)
+            }
         }
         .font(.body)
         .padding(.horizontal, 10)
         .frame(height: 38)
+        .opacity(isResting ? 0.55 : 1)
         .rowHover(isActive: isActive)
         .onHover { hovering = $0 }
+        .contentShape(Rectangle())
+        .onTapGesture { if isResting { upgrade(Entitlement.restReason(for: rule)) } }
+        .help(isResting ? "Resting on Free. Mauna Pro brings it back." : "")
         .accessibilityElement(children: .combine)
     }
 

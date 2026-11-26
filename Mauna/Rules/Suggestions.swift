@@ -84,9 +84,11 @@ nonisolated enum Suggestions {
         func add(_ group: SuggestionGroup, _ trigger: Trigger, _ action: Hold, _ ids: [String]) -> [Entry] {
             ids.map { Entry(match: $0, group: group, trigger: trigger, action: action) }
         }
-        return add(.calls, .running, .paused, [
+        // "In a call": these sit open all day, but quiet music only while a call has the mic.
+        return add(.calls, .usingMicOrSound, .paused, [
             "us.zoom.xos", "com.microsoft.teams2", "com.microsoft.teams", "com.apple.FaceTime",
             "com.cisco.webexmeetingsapp", "Cisco-Systems.Spark", "com.skype.skype",
+            "com.tinyspeck.slackmacgap", "com.hnc.Discord",
         ])
         + add(.watching, .inFront, .paused, [
             "com.apple.QuickTimePlayerX", "com.colliderli.iina", "org.videolan.vlc", "com.apple.TV", "com.firecore.infuse",

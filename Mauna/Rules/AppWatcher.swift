@@ -1,6 +1,7 @@
 import AppKit
 
-/// Watches which app is in front and which apps are running (NSWorkspace notifications),
+/// Watches which app is in front, which apps are running (NSWorkspace notifications), which are
+/// using the microphone (in a call),
 /// and whether anyone is at the Mac (screen saver, lock, sleep).
 ///
 /// Mauna itself, the screen saver and the lock screen are never "the app in front":
@@ -16,9 +17,12 @@ final class AppWatcher {
     private var awayReasons: Set<AwayReason> = []
     private var observers: [NSObjectProtocol] = []
     private let ownBundleID = Bundle.main.bundleIdentifier
+    /// Apps using the microphone: the "In a call" trigger.
+    private let mic = MicWatcher()
 
     init() {
         snapshot = read(previousFrontmost: nil)
+        mic.onChange = { [weak self] _ in self?.changed() }
         let workspace = NSWorkspace.shared.notificationCenter
         let names: [Notification.Name] = [
             NSWorkspace.didActivateApplicationNotification,
@@ -55,7 +59,7 @@ final class AppWatcher {
         var front = workspace.frontmostApplication?.bundleIdentifier
         if let id = front, isIgnored(id) { front = previousFrontmost }
         let running = Set(workspace.runningApplications.compactMap(\.bundleIdentifier))
-        return AppSnapshot(frontmost: front, running: running)
+        return AppSnapshot(frontmost: front, running: running, usingAudio: mic.appsInCall)
     }
 
     /// Apps that can be in front without meaning "the user switched apps".

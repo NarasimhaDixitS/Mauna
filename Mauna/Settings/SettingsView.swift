@@ -12,16 +12,16 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $tab) {
-            PlayersSettings(session: model.session)
+            PlayersSettings(model: model)
                 .tabItem { Label("Players", systemImage: "music.note") }
                 .tag(SettingsTab.players)
-            RulesSettings(coordinator: model.rules)
+            RulesSettings(model: model)
                 .tabItem { Label("Rules", systemImage: "list.bullet") }
                 .tag(SettingsTab.rules)
-            SoundSettings(session: model.session)
+            SoundSettings(model: model)
                 .tabItem { Label("Sound", systemImage: "speaker.wave.2") }
                 .tag(SettingsTab.sound)
-            GeneralSettings()
+            GeneralSettings(model: model)
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(SettingsTab.general)
             #if DEBUG
@@ -39,6 +39,20 @@ struct SettingsView: View {
 private struct DebugSettings: View {
     let model: AppModel
     private var session: PlayerSession { model.session }
+    /// Testing Pro without buying: pretend to be on a plan. "As purchased" goes back to StoreKit.
+    @State private var previewPlan = "real"
+
+    private func setPlan(_ choice: String) {
+        previewPlan = choice
+        let store = model.store
+        switch choice {
+        case "free": store.preview(.free, trialTaken: false)
+        case "trial": store.preview(.trial(endsAt: .now.addingTimeInterval(9 * 86_400 - 60)), trialTaken: true)
+        case "ended": store.preview(.free, trialTaken: true)
+        case "pro": store.preview(.pro)
+        default: Task { await store.endPreview() }
+        }
+    }
 
     var body: some View {
         Form {
@@ -53,6 +67,13 @@ private struct DebugSettings: View {
                 }
                 .disabled(!session.isRunning)
                 Button("Show welcome window") { OnboardingWindow.show(model: model) }
+                Picker("Plan", selection: Binding(get: { previewPlan }, set: { setPlan($0) })) {
+                    Text("As purchased").tag("real")
+                    Text("Free").tag("free")
+                    Text("Trial, 9 days left").tag("trial")
+                    Text("Trial ended").tag("ended")
+                    Text("Pro").tag("pro")
+                }
                 LabeledContent("Hold", value: "\(session.hold)")
                 LabeledContent("Rule hold", value: "\(session.ruleHold)")
                 LabeledContent("Your hold", value: "\(session.manualHold)")

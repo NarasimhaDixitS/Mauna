@@ -181,11 +181,11 @@ struct Badge: View {
 }
 
 extension Trigger {
-    /// Badge symbols from the design system: macwindow, mic.fill, play.circle.
+    /// Badge symbols: macwindow, phone.fill ("In a call"), play.circle.
     var symbol: String {
         switch self {
         case .inFront:         "macwindow"
-        case .usingMicOrSound: "mic.fill"
+        case .usingMicOrSound: "phone.fill"
         case .running:         "play.circle"
         }
     }
@@ -400,5 +400,57 @@ struct SettingsPage<Content: View>: View {
         .padding(24)
         .frame(width: Size.settingsWindowWidth, alignment: .topLeading)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+// MARK: Status tile
+
+/// Mauna's face: an indigo tile with the white wave. Deep and calm at rest; brighter with a soft glow
+/// while Mauna acts; grey only when Mauna is off. The wave says what you hear: full, low, or ❙❙.
+/// 40pt in the popover header; larger in the upgrade window.
+struct StatusTile: View {
+    let state: GlyphState
+    let isActing: Bool
+    var size: CGFloat = 40
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: size * 0.275, style: .continuous)
+        WaveGlyphView(state: state == .off ? .playing : state, size: size * 0.55)
+            .foregroundStyle(.white.opacity(state == .off ? 0.75 : 1))
+            .frame(width: size, height: size)
+            .background {
+                ZStack {
+                    shape.fill(LinearGradient.tileOff)
+                    shape.fill(LinearGradient.tileRest).opacity(state == .off ? 0 : 1)
+                    shape.fill(LinearGradient.tileActing).opacity(isActing ? 1 : 0)
+                }
+                .shadow(color: isActing ? .tileGlow : .black.opacity(0.18),
+                        radius: isActing ? size * 0.16 : size * 0.04, y: isActing ? size * 0.04 : size * 0.025)
+            }
+            .overlay {
+                shape.strokeBorder(
+                    LinearGradient(colors: [.white.opacity(0.35), .clear], startPoint: .top, endPoint: .center),
+                    lineWidth: 0.6
+                )
+            }
+            .animation(.maunaEaseOut(0.25), value: isActing)
+            .animation(.maunaEaseOut(0.25), value: state == .off)
+    }
+}
+
+// MARK: Pro badge
+
+/// `.badge.pro`: a small "PRO" capsule, accent text on a tint that fades to the right.
+struct ProBadge: View {
+    var body: some View {
+        Text("PRO")
+            .font(.system(size: 9.5, weight: .bold))
+            .tracking(0.4)
+            .foregroundStyle(.accentText)
+            .padding(.horizontal, 6)
+            .frame(height: 16)
+            .background(Capsule().fill(LinearGradient(colors: [Color.accentTint, Color.accentTint.opacity(0.3)], startPoint: .leading, endPoint: .trailing)))
+            .overlay(Capsule().strokeBorder(Color.accentTint, lineWidth: 0.5))
+            .accessibilityLabel("Pro")
     }
 }

@@ -17,7 +17,8 @@ struct PopoverView: View {
                 .padding(.horizontal, 4)
                 .padding(.bottom, 8)
 
-            PlayerCard(session: model.session)
+            PlayerCard(session: model.session, unlocksPro: model.unlocksPro,
+                       upgrade: { model.showUpgrade(for: $0) })
                 .padding(.horizontal, 4)
                 .padding(.bottom, 8)
 
@@ -48,7 +49,7 @@ struct PopoverView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            GlyphTile(state: model.glyphState, isActing: model.isActing)
+            StatusTile(state: model.glyphState, isActing: model.isActing)
 
             VStack(alignment: .leading, spacing: 2) {
                 // "YouTube Music is paused" is long: step down a size rather than cut it off.
@@ -88,6 +89,10 @@ struct PopoverView: View {
                 .keyboardShortcut(",")
                 .foregroundStyle(.secondary)
             Spacer()
+            if Store.sellsInApp, model.store.plan != .pro {
+                Button { model.showUpgrade(for: nil) } label: { ProLink(plan: model.store.plan) }
+                Spacer()
+            }
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
                 .foregroundStyle(.tertiary)
@@ -120,42 +125,13 @@ private struct QuietNowButton: View {
     }
 }
 
-/// The status hero, Mauna's face: a 40pt indigo tile with the white wave. Deep and calm at rest;
-/// brighter with a soft glow while Mauna acts; grey only when Mauna is off. The wave says what you hear:
-/// full, low, or a pause mark.
-private struct GlyphTile: View {
-    let state: GlyphState
-    let isActing: Bool
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
-        WaveGlyphView(state: state == .off ? .playing : state, size: 22)
-            .foregroundStyle(.white.opacity(state == .off ? 0.75 : 1))
-            .frame(width: 40, height: 40)
-            .background {
-                ZStack {
-                    shape.fill(LinearGradient.tileOff)
-                    shape.fill(LinearGradient.tileRest).opacity(state == .off ? 0 : 1)
-                    shape.fill(LinearGradient.tileActing).opacity(isActing ? 1 : 0)
-                }
-                .shadow(color: isActing ? .tileGlow : .black.opacity(0.18), radius: isActing ? 6.5 : 1.5, y: isActing ? 1.5 : 1)
-            }
-            .overlay {
-                shape.strokeBorder(
-                    LinearGradient(colors: [.white.opacity(0.35), .clear], startPoint: .top, endPoint: .center),
-                    lineWidth: 0.6
-                )
-            }
-            .animation(.maunaEaseOut(0.25), value: isActing)
-            .animation(.maunaEaseOut(0.25), value: state == .off)
-    }
-}
-
 /// The player, as a "now playing" tile lit by the player's own colour. Tap its name and the card unfolds
 /// in place into your players (like Control Center's sound output list); pick one and it folds back.
 /// Rules follow the choice at once. Dragging the slider sets the level music always returns to.
 private struct PlayerCard: View {
     @Bindable var session: PlayerSession
+    var unlocksPro = true
+    var upgrade: (ProFeature) -> Void = { _ in }
     #if DEBUG
     /// MAUNA_SNAPSHOT_CHOOSING=1 renders the card open.
     @State private var choosing = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_CHOOSING"] != nil
@@ -173,10 +149,14 @@ private struct PlayerCard: View {
                 .padding(10)
 
             if choosing {
-                PlayerList(current: session.player) { player in
+                PlayerList(current: session.player, unlocksPro: unlocksPro) { player in
                     withAnimation(.maunaSpring) {
-                        session.select(player)
                         choosing = false
+                        if player.isBrowser && !unlocksPro {
+                            upgrade(.youTubeMusic)
+                        } else {
+                            session.select(player)
+                        }
                     }
                 }
                 .padding(.horizontal, 4)
@@ -258,7 +238,20 @@ private struct PlayerCard: View {
     }
 
     @ViewBuilder private var volumeRow: some View {
-        if session.player.isBrowser {
+        if session.isLocked {
+            // YouTube Music on Free: say so once, with the way to unlock it.
+            Button { upgrade(.youTubeMusic) } label: {
+                HStack(spacing: 6) {
+                    Text("Mauna rests on YouTube Music on Free")
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    ProBadge()
+                }
+                .font(.subheadline)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainTextButtonStyle())
+        } else if session.player.isBrowser {
             // The page owns its volume: Mauna only lowers and pauses it, then hands it back.
             HStack(spacing: 6) {
                 Image(systemName: "slider.horizontal.below.rectangle")
@@ -371,6 +364,7 @@ private struct ChooseButtonFace: View {
 /// on the one Mauna controls. Rows light up under the pointer.
 private struct PlayerList: View {
     let current: PlayerID
+    var unlocksPro = true
     let choose: (PlayerID) -> Void
 
     var body: some View {
@@ -389,6 +383,7 @@ private struct PlayerList: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 0)
+                        if player.isBrowser && !unlocksPro { ProBadge() }
                         Image(systemName: "checkmark")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.accentText)
@@ -519,8 +514,9 @@ struct SettingsButton: View {
     var body: some View {
         Button {
             if let tab { selectedTab = tab }
-            NSApplication.shared.activate()
+            WindowFront.activate()
             openSettings()
+            WindowFront.raiseSettings()
         } label: {
             if let symbol {
                 Label(title, systemImage: symbol)
@@ -533,4 +529,22 @@ struct SettingsButton: View {
 
 #Preview("Popover") {
     PopoverView(model: AppModel())
+}
+
+/// Footer link to Mauna Pro: "Get Pro", or the trial's days left. Quiet, never a nag.
+private struct ProLink: View {
+    let plan: Plan
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "sparkle")
+                .font(.system(size: 10, weight: .semibold))
+            if let days = plan.trialDaysLeft(now: .now) {
+                Text("Pro trial · \(days) \(days == 1 ? "day" : "days") left")
+            } else {
+                Text("Get Pro")
+            }
+        }
+        .foregroundStyle(.accentText)
+    }
 }

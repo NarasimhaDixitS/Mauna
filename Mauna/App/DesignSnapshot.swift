@@ -13,6 +13,12 @@ enum DesignSnapshot {
         let read = safari
             ? "JSON.stringify({level:L(),wish:v?v.volume:null,el:v?Math.round(d.get.call(v)*1000)/1000:null,paused:v?v.paused:null})"
             : "JSON.stringify({ctx:c&&c.state,gain:g?Math.round(g.gain.value*1000)/1000:null,el:v?v.volume:null,paused:v?v.paused:null,hold:w.__maunaHold})"
+        if ProcessInfo.processInfo.environment["MAUNA_PROBE_MIC"] != nil {
+            for line in MicWatcher.describeAll() { print(line) }
+            let watcher = MicWatcher()
+            print("apps in a call:", watcher.appsInCall.sorted())
+            fflush(stdout); exit(0)
+        }
         if ProcessInfo.processInfo.environment["MAUNA_PROBE_TIMES"] != nil {
             Task {
                 var times: [Int] = []
@@ -91,7 +97,7 @@ enum DesignSnapshot {
             var demo: [Rule] = [
                 Rule(bundleID: "com.apple.Notes", appName: "Notes", trigger: .inFront, action: .ducked),
                 Rule(bundleID: "com.apple.TextEdit", appName: "TextEdit", trigger: .inFront, action: .paused),
-                Rule(bundleID: "com.apple.FaceTime", appName: "FaceTime", trigger: .running, action: .paused),
+                Rule(bundleID: "com.apple.FaceTime", appName: "FaceTime", trigger: .usingMicOrSound, action: .paused),
                 Rule(bundleID: "com.apple.QuickTimePlayerX", appName: "QuickTime Player", trigger: .inFront, action: .paused),
                 Rule(bundleID: "com.apple.TV", appName: "TV", trigger: .inFront, action: .paused),
                 Rule(bundleID: "com.apple.Chess", appName: "Chess", trigger: .running, action: .paused),
@@ -102,15 +108,25 @@ enum DesignSnapshot {
             if let front, ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_FRONT_FREE"] == nil { demo.append(Rule(bundleID: front.0, appName: front.1, trigger: .inFront, action: .paused)) }
             model.rules.showPreviewRules(demo)
         }
+        // MAUNA_SNAPSHOT_PLAN=free|trial|pro renders on that plan.
+        switch ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_PLAN"] {
+        case "free": model.store.preview(.free)
+        case "trial": model.store.preview(.trial(endsAt: .now.addingTimeInterval(9 * 86_400 - 60)))
+        case "pro": model.store.preview(.pro)
+        default: break
+        }
         let suggestions = SuggestionsState()
         Task { await suggestions.load(existing: model.rules) }
         let which = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_VIEW"] ?? "popover"
         let content: AnyView = switch which {
-        case "players": AnyView(PlayersSettings(session: model.session))
-        case "rules":   AnyView(RulesSettings(coordinator: model.rules))
-        case "sound":   AnyView(SoundSettings(session: model.session))
-        case "general": AnyView(GeneralSettings())
+        case "players": AnyView(PlayersSettings(model: model))
+        case "rules":   AnyView(RulesSettings(model: model))
+        case "sound":   AnyView(SoundSettings(model: model))
+        case "general": AnyView(GeneralSettings(model: model))
         case "states":  AnyView(StatesSheet())
+        case "upgrade": AnyView(UpgradeView(model: model, feature: nil) {})
+        case "upgrade-yt": AnyView(UpgradeView(model: model, feature: .youTubeMusic) {})
+        case "upgrade-onboarding": AnyView(UpgradeView(model: model, feature: nil, afterOnboarding: true) {})
         case "glyphs":  AnyView(GlyphStudySheet())
         case "welcome1": AnyView(OnboardingView(model: model, startStep: 0))
         case "welcome2": AnyView(OnboardingView(model: model, startStep: 1, suggestions: suggestions))

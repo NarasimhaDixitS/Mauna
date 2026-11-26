@@ -7,6 +7,7 @@ import Observation
 final class AppModel {
     let session: PlayerSession
     let rules: RuleCoordinator
+    let store: Store
 
     /// A short message that replaces the status line for a few seconds, like "Still paused for Zoom".
     private(set) var notice: String?
@@ -18,6 +19,10 @@ final class AppModel {
         let session = PlayerSession()
         self.session = session
         self.rules = RuleCoordinator(session: session)
+        let store = Store()
+        self.store = store
+        apply(store.plan)
+        store.onPlanChange = { [weak self] plan in self?.apply(plan) }
         KeyboardShortcuts.onKeyDown(for: .quietMusic) { [weak self] in self?.quietPressed() }
         // First launch: welcome window, once the app has finished starting.
         if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] == nil, ProcessInfo.processInfo.environment["MAUNA_PROBE"] == nil {
@@ -26,6 +31,21 @@ final class AppModel {
                 OnboardingWindow.showIfNeeded(model: self)
             }
         }
+    }
+
+    // MARK: Pro
+
+    /// Rules and the player follow the plan at once.
+    private func apply(_ plan: Plan) {
+        rules.plan = plan
+        session.unlocksPro = plan.unlocksPro
+    }
+
+    var unlocksPro: Bool { store.plan.unlocksPro }
+
+    /// The upgrade window, opened from anything marked Pro. `feature` leads the pitch.
+    func showUpgrade(for feature: ProFeature? = nil, afterOnboarding: Bool = false) {
+        UpgradeWindow.show(model: self, feature: feature, afterOnboarding: afterOnboarding)
     }
 
     // MARK: Quiet shortcut
@@ -119,12 +139,15 @@ final class AppModel {
             }
         }
         if !rules.isEnabled { return "Rules are off. Quiet now still works." }
-        let count = rules.allRules.filter(\.isEnabled).count
+        let resting = rules.restingIDs.count
+        let count = rules.allRules.filter(\.isEnabled).count - resting
+        let watching: String
         switch count {
-        case 0: return "No quiet apps yet"
-        case 1: return "Watching 1 app"
-        default: return "Watching \(count) apps"
+        case 0: watching = resting > 0 ? "Watching no apps" : "No quiet apps yet"
+        case 1: watching = "Watching 1 app"
+        default: watching = "Watching \(count) apps"
         }
+        return resting > 0 ? "\(watching) · \(resting) resting" : watching
     }
 
     /// True while Mauna is acting on the music.

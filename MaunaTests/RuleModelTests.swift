@@ -35,7 +35,7 @@ struct RuleModelTests {
 
     @Test("Smart default: call apps and games run, everything else is in front")
     func smartDefault() {
-        #expect(Rule.suggestedTrigger(bundleID: "us.zoom.xos", category: nil) == .running)
+        #expect(Rule.suggestedTrigger(bundleID: "us.zoom.xos", category: nil) == .usingMicOrSound)
         #expect(Rule.suggestedTrigger(bundleID: "com.example.game", category: "public.app-category.action-games") == .running)
         #expect(Rule.suggestedTrigger(bundleID: "com.apple.dt.Xcode", category: "public.app-category.developer-tools") == .inFront)
         #expect(Rule.suggestedTrigger(bundleID: "com.figma.Desktop", category: nil) == .inFront)

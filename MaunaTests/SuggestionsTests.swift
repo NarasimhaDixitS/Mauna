@@ -16,7 +16,7 @@ struct SuggestionsTests {
         ])
         #expect(result.map(\.group) == [.calls, .watching, .focus])
         let zoom = result[0].items[0]
-        #expect(zoom.trigger == .running && zoom.action == .paused)
+        #expect(zoom.trigger == .usingMicOrSound && zoom.action == .paused)
         let xcode = result[2].items[0]
         #expect(xcode.trigger == .inFront && xcode.action == .ducked)
     }

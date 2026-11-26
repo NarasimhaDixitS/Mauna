@@ -105,7 +105,13 @@ struct OnboardingView: View {
             }
             Button(step == 2 ? "Done" : continueTitle) {
                 if step == 1 { suggestions.addTicked(to: model.rules) }
-                if step == 2 { onFinish() } else { go(step + 1) }
+                if step == 2 {
+                    onFinish()
+                    // On Free with more rules than Free runs: offer the trial, once, right away.
+                    if Store.sellsInApp, !model.unlocksPro, !model.store.trialTaken {
+                        model.showUpgrade(for: nil, afterOnboarding: true)
+                    }
+                } else { go(step + 1) }
             }
             .buttonStyle(.maunaPrimary)
             .keyboardShortcut(.defaultAction)
