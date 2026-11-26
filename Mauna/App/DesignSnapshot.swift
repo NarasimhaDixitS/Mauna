@@ -5,10 +5,46 @@ import SwiftUI
 /// Renders the popover to a PNG so its design can be checked against design-system.html without
 /// screen recording. Native AppKit controls (the switch) don't draw in ImageRenderer.
 enum DesignSnapshot {
-    /// Debug only: lowers YouTube Music in Chrome to 20%, then logs what the page does to it for 10 s.
+    /// Debug only: lowers YouTube Music to 20%, then logs what the page does to it for 10 s.
+    /// Chrome by default; `MAUNA_PROBE_PLAYER=safari` for Safari.
     static func probeYouTubeMusic() {
-        let player = BrowserPlayer(player: .youTubeMusicChrome)
-        let read = "JSON.stringify({ctx:c&&c.state,gain:g?Math.round(g.gain.value*1000)/1000:null,el:v?v.volume:null,paused:v?v.paused:null,hold:w.__maunaHold})"
+        let safari = ProcessInfo.processInfo.environment["MAUNA_PROBE_PLAYER"] == "safari"
+        let player = BrowserPlayer(player: safari ? .youTubeMusicSafari : .youTubeMusicChrome)
+        let read = safari
+            ? "JSON.stringify({level:L(),wish:v?v.volume:null,el:v?Math.round(d.get.call(v)*1000)/1000:null,paused:v?v.paused:null})"
+            : "JSON.stringify({ctx:c&&c.state,gain:g?Math.round(g.gain.value*1000)/1000:null,el:v?v.volume:null,paused:v?v.paused:null,hold:w.__maunaHold})"
+        if ProcessInfo.processInfo.environment["MAUNA_PROBE_TIMES"] != nil {
+            Task {
+                var times: [Int] = []
+                for _ in 0..<10 {
+                    let t = Date()
+                    _ = try? await player.state()
+                    times.append(Int(Date().timeIntervalSince(t) * 1000))
+                }
+                print("state() ms:", times); fflush(stdout); exit(0)
+            }
+            return
+        }
+        if ProcessInfo.processInfo.environment["MAUNA_PROBE_PAUSE"] != nil {
+            Task {
+                let t0 = Date()
+                func log(_ s: String) { print(String(format: "%6.2fs ", Date().timeIntervalSince(t0)), s); fflush(stdout) }
+                do {
+                    for _ in 0..<2 {
+                        log("state \(try await player.state())")
+                        log("volume \(try await player.volume())")
+                        try await VolumeFader.fade(player, from: 1, to: 0, duration: 1.2) { _ in log("step") }
+                        try await player.pause(); log("paused")
+                        try await player.setVolume(1); try await player.releaseVolume(); log("reset")
+                        try await Task.sleep(for: .seconds(1))
+                        try await player.play(); log("playing again")
+                        try await Task.sleep(for: .seconds(3))
+                    }
+                } catch { log("error \(error)") }
+                exit(0)
+            }
+            return
+        }
         if let code = ProcessInfo.processInfo.environment["MAUNA_PROBE_JS"] {
             Task {
                 do { print(try await player.js(code) ?? "no tab") } catch { print("error", error) }
@@ -41,6 +77,31 @@ enum DesignSnapshot {
     static func render(to path: String) {
         let dark = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_DARK"] != nil
         let model = AppModel()
+        // MAUNA_SNAPSHOT_PLAYER=youTubeMusicChrome renders with that player chosen.
+        if let raw = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_PLAYER"], let player = PlayerID(rawValue: raw) {
+            model.session.select(player)
+        }
+        // MAUNA_SNAPSHOT_DEMO=1: a full set of rules (not saved), one acting on the app in front.
+        // Dry run: rules decide, nothing is sent to the player.
+        if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_DEMO"] != nil {
+            model.session.dryRun = true
+            let front = model.rules.frontmost.flatMap { id in
+                NSRunningApplication.runningApplications(withBundleIdentifier: id).first.map { (id, $0.localizedName ?? id) }
+            }
+            var demo: [Rule] = [
+                Rule(bundleID: "com.apple.Notes", appName: "Notes", trigger: .inFront, action: .ducked),
+                Rule(bundleID: "com.apple.TextEdit", appName: "TextEdit", trigger: .inFront, action: .paused),
+                Rule(bundleID: "com.apple.FaceTime", appName: "FaceTime", trigger: .running, action: .paused),
+                Rule(bundleID: "com.apple.QuickTimePlayerX", appName: "QuickTime Player", trigger: .inFront, action: .paused),
+                Rule(bundleID: "com.apple.TV", appName: "TV", trigger: .inFront, action: .paused),
+                Rule(bundleID: "com.apple.Chess", appName: "Chess", trigger: .running, action: .paused),
+                Rule(bundleID: "com.apple.finder", appName: "Finder", trigger: .inFront, action: .ducked),
+                Rule(bundleID: "com.apple.Preview", appName: "Preview", trigger: .inFront, action: .ducked),
+            ]
+            // MAUNA_SNAPSHOT_FRONT_FREE=1 leaves the app in front without a rule (the quick rule card).
+            if let front, ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_FRONT_FREE"] == nil { demo.append(Rule(bundleID: front.0, appName: front.1, trigger: .inFront, action: .paused)) }
+            model.rules.showPreviewRules(demo)
+        }
         let suggestions = SuggestionsState()
         Task { await suggestions.load(existing: model.rules) }
         let which = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_VIEW"] ?? "popover"
@@ -50,6 +111,7 @@ enum DesignSnapshot {
         case "sound":   AnyView(SoundSettings(session: model.session))
         case "general": AnyView(GeneralSettings())
         case "states":  AnyView(StatesSheet())
+        case "glyphs":  AnyView(GlyphStudySheet())
         case "welcome1": AnyView(OnboardingView(model: model, startStep: 0))
         case "welcome2": AnyView(OnboardingView(model: model, startStep: 1, suggestions: suggestions))
         case "welcome3": AnyView(OnboardingView(model: model, startStep: 2))

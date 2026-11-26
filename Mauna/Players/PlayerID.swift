@@ -54,6 +54,10 @@ nonisolated enum PlayerID: String, CaseIterable, Identifiable, Sendable, Codable
         }
     }
 
+    /// How steeply the player's volume slider maps to loudness (see `AudioTiming.duckVolume`).
+    /// Spotify's slider is roughly cubic: 14 of 100 is close to silent.
+    var volumeCurve: Double { self == .spotify ? 3 : 1 }
+
     /// The player's own controller.
     func makeController() -> any PlayerController {
         isBrowser ? BrowserPlayer(player: self) : ScriptablePlayer(player: self)

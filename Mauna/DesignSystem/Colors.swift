@@ -83,6 +83,21 @@ extension LinearGradient {
         )
     }
 
+    /// Status tile at rest: Mauna's face, a deep calm indigo. Never grey unless Mauna is off.
+    static var tileRest: LinearGradient {
+        LinearGradient(colors: [Color(hex: 0x4C47C4), Color(hex: 0x2E2A86)], startPoint: .top, endPoint: .bottom)
+    }
+
+    /// Status tile while Mauna acts: brighter, with `Color.tileGlow` around it.
+    static var tileActing: LinearGradient {
+        LinearGradient(colors: [Color(hex: 0x6F6AF0), Color(hex: 0x4C47C4)], startPoint: .top, endPoint: .bottom)
+    }
+
+    /// Status tile when Mauna is off: the only grey state.
+    static var tileOff: LinearGradient {
+        LinearGradient(colors: [Color(white: 0.55), Color(white: 0.40)], startPoint: .top, endPoint: .bottom)
+    }
+
     /// Active rule row: the tint fades out to the right, so the row glows from the icon.
     static var accentRowTint: LinearGradient {
         LinearGradient(
@@ -95,4 +110,11 @@ extension LinearGradient {
 extension Color {
     /// Coloured shadow under accent surfaces.
     static var accentShadow: Color { Color(light: (0x2E2890, 0.35), dark: (0x000000, 0.5)) }
+
+    /// The soft glow around the status tile while Mauna acts.
+    static var tileGlow: Color { Color(hex: 0x6F6AF0).opacity(0.55) }
+
+    init(hex: UInt32) {
+        self.init(nsColor: NSColor(hex: hex))
+    }
 }

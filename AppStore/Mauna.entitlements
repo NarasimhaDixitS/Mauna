@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store build: sandboxed. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+
+	<!-- The approved way to control other apps from the sandbox: their own scripting access groups.
+	     Both cover everything Mauna uses (play, pause, player state, sound volume). -->
+	<key>com.apple.security.scripting-targets</key>
+	<dict>
+		<key>com.apple.Music</key>
+		<array>
+			<string>com.apple.Music.playback</string>
+		</array>
+		<key>com.spotify.client</key>
+		<array>
+			<string>com.spotify.playback</string>
+		</array>
+	</dict>
+
+	<!-- YouTube Music: Chrome and Safari offer no access group for running JavaScript in a tab,
+	     so this needs an exception App Review may refuse. If it does, drop these two lines and
+	     YouTube Music stays in the direct version only. -->
+	<key>com.apple.security.temporary-exception.apple-events</key>
+	<array>
+		<string>com.google.Chrome</string>
+		<string>com.apple.Safari</string>
+	</array>
+</dict>
+</plist>

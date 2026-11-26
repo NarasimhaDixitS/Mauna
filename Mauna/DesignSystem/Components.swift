@@ -142,12 +142,15 @@ struct AppIconView: View {
 
 // MARK: Badge
 
-/// Trigger badge. At rest it's quiet: symbol + word in secondary, no pill.
+/// Trigger badge. At rest it's quiet: secondary, no pill. With `showsText` off it's only its symbol
+/// (plus `restSymbol`, like a small speaker for Lower), and the words slide in on hover.
 /// While that rule is in charge it gains an accent pill. Triggers differ by glyph and word, never colour.
 struct Badge: View {
     let symbol: String?
     let text: String
     var isAccent = false
+    var restSymbol: String? = nil
+    var showsText = true
 
     var body: some View {
         HStack(spacing: 4) {
@@ -155,14 +158,25 @@ struct Badge: View {
                 Image(systemName: symbol)
                     .font(.system(size: 9, weight: .semibold))
             }
-            Text(text)
-                .font(.system(size: 10.5, weight: .semibold))
+            if showsText {
+                Text(text)
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .fixedSize()
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            } else if let restSymbol {
+                Image(systemName: restSymbol)
+                    .font(.system(size: 9, weight: .semibold))
+                    .transition(.opacity)
+            }
         }
         .foregroundStyle(isAccent ? AnyShapeStyle(.accentText) : AnyShapeStyle(.tertiary))
         .padding(.horizontal, 7)
         .frame(height: 20)
         .background(Capsule().fill(isAccent ? AnyShapeStyle(.accentTint) : AnyShapeStyle(.clear)))
         .animation(.maunaEaseOut(MotionDuration.rowHighlight), value: isAccent)
+        .animation(.maunaEaseOut(0.16), value: showsText)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
     }
 }
 

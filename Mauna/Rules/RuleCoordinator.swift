@@ -27,6 +27,8 @@ final class RuleCoordinator {
     }
     /// The app in front, as rules see it (never Mauna itself).
     private(set) var frontmost: String?
+    /// Apps running now. The popover lists rules for open apps first.
+    private(set) var running: Set<String> = []
 
     @ObservationIgnored private var engine: RuleEngine
     @ObservationIgnored private let watcher = AppWatcher()
@@ -59,6 +61,7 @@ final class RuleCoordinator {
             publish()
         }
         frontmost = watcher.snapshot.frontmost
+        running = watcher.snapshot.running
         pushRules()
     }
 
@@ -105,6 +108,14 @@ final class RuleCoordinator {
         pushRules()
     }
 
+    #if DEBUG
+    /// Design renders: show these rules without saving them.
+    func showPreviewRules(_ preview: [Rule]) {
+        rules = preview
+        pushRules()
+    }
+    #endif
+
     func hasRule(for bundleID: String) -> Bool { allRules.contains { $0.bundleID == bundleID } }
     func isQuick(_ rule: Rule) -> Bool { quickRules.contains { $0.id == rule.id } }
 
@@ -127,6 +138,7 @@ final class RuleCoordinator {
 
     private func update(_ snapshot: AppSnapshot) {
         frontmost = snapshot.frontmost
+        if running != snapshot.running { running = snapshot.running }
         // Quick rules end with their app.
         let ended = quickRules.filter { !snapshot.running.contains($0.bundleID) }
         if !ended.isEmpty {

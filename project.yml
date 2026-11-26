@@ -37,6 +37,7 @@ targets:
     platform: macOS
     sources:
       - path: Mauna
+        excludes: ["*.entitlements"]
     dependencies:
       - package: KeyboardShortcuts
     scheme:
@@ -63,6 +64,41 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Mauna/Mauna.entitlements
         ENABLE_HARDENED_RUNTIME: YES   # required for notarization (Phase 6)
         ENABLE_APP_SANDBOX: NO         # direct DMG distribution, see docs/ROADMAP.md
+
+  # Mac App Store build of the same code: sandboxed, StoreKit for Pro. Compiles with APP_STORE.
+  # The direct build above stays unsandboxed (Lemon Squeezy, Sparkle). See docs/ROADMAP.md › Phase 6.
+  MaunaAppStore:
+    type: application
+    platform: macOS
+    sources:
+      - path: Mauna
+        excludes: ["Info.plist", "*.entitlements"]
+    dependencies:
+      - package: KeyboardShortcuts
+    scheme: {}
+    info:
+      path: AppStore/Info.plist
+      properties:
+        CFBundleDisplayName: Mauna
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.music
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHumanReadableCopyright: "© 2026 Throttle Labs"
+        NSAppleEventsUsageDescription: Mauna pauses, resumes and fades your music player. It never reads what you listen to.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: in.throttlelabs.mauna
+        PRODUCT_NAME: MaunaAppStore   # own .app in the build folder; people still see "Mauna"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: Apple Development
+        DEVELOPMENT_TEAM: 23495RS836
+        CODE_SIGN_ENTITLEMENTS: AppStore/Mauna.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: YES
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) APP_STORE
 
   # Logic tests. Pure files are compiled straight in, so tests never launch Mauna or touch a player.
   MaunaTests:

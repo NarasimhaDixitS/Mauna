@@ -38,6 +38,11 @@ struct PopoverView: View {
         }
         .padding(8)
         .frame(width: Size.popoverWidth)
+        .background {
+            // Full-screen Spaces: grow down from the menu bar, never off the top.
+            // (Left out of design renders, which can't draw AppKit views.)
+            if ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT"] == nil { PopoverTopPin() }
+        }
         .onAppear { model.session.refresh() }
     }
 
@@ -46,13 +51,18 @@ struct PopoverView: View {
             GlyphTile(state: model.glyphState, isActing: model.isActing)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.statusLine)
-                    .font(.system(size: 14, weight: .semibold))
+                // "YouTube Music is paused" is long: step down a size rather than cut it off.
+                ViewThatFits(in: .horizontal) {
+                    Text(model.statusLine).font(.system(size: 14, weight: .semibold))
+                    Text(model.statusLine).font(.system(size: 12.5, weight: .semibold))
+                }
                     .lineLimit(1)
                     .id(model.statusLine)
                     .transition(.blurCrossfade)
-                Text(model.detailLine)
-                    .font(.subheadline)
+                ViewThatFits(in: .horizontal) {
+                    Text(model.detailLine).font(.subheadline)
+                    Text(model.detailLine).font(.caption)
+                }
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .id(model.detailLine)
@@ -110,79 +120,168 @@ private struct QuietNowButton: View {
     }
 }
 
-/// The status hero: 40pt tile. At rest a quiet well; while Mauna acts, an indigo gradient with a soft glow.
+/// The status hero, Mauna's face: a 40pt indigo tile with the white wave. Deep and calm at rest;
+/// brighter with a soft glow while Mauna acts; grey only when Mauna is off. The wave says what you hear:
+/// full, low, or a pause mark.
 private struct GlyphTile: View {
     let state: GlyphState
     let isActing: Bool
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
-        WaveGlyphView(state: state, size: 22)
-            .foregroundStyle(isActing ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+        WaveGlyphView(state: state == .off ? .playing : state, size: 22)
+            .foregroundStyle(.white.opacity(state == .off ? 0.75 : 1))
             .frame(width: 40, height: 40)
             .background {
                 ZStack {
-                    shape.fill(.well)
-                    shape.fill(LinearGradient.accentFill)
-                        .shadow(color: .accentShadow, radius: 6, y: 2)
-                        .opacity(isActing ? 1 : 0)
+                    shape.fill(LinearGradient.tileOff)
+                    shape.fill(LinearGradient.tileRest).opacity(state == .off ? 0 : 1)
+                    shape.fill(LinearGradient.tileActing).opacity(isActing ? 1 : 0)
                 }
+                .shadow(color: isActing ? .tileGlow : .black.opacity(0.18), radius: isActing ? 6.5 : 1.5, y: isActing ? 1.5 : 1)
             }
             .overlay {
                 shape.strokeBorder(
-                    LinearGradient(colors: [.white.opacity(isActing ? 0.35 : 0.0), .clear], startPoint: .top, endPoint: .center),
-                    lineWidth: 0.5
+                    LinearGradient(colors: [.white.opacity(0.35), .clear], startPoint: .top, endPoint: .center),
+                    lineWidth: 0.6
                 )
             }
             .animation(.maunaEaseOut(0.25), value: isActing)
+            .animation(.maunaEaseOut(0.25), value: state == .off)
     }
 }
 
-/// The player: its real icon, what Mauna is doing to it, and the normal volume you can drag.
-/// Dragging sets the level music always returns to, and moves the player now if it's playing untouched.
+/// The player, as a "now playing" tile lit by the player's own colour. Tap its name and the card unfolds
+/// in place into your players (like Control Center's sound output list); pick one and it folds back.
+/// Rules follow the choice at once. Dragging the slider sets the level music always returns to.
 private struct PlayerCard: View {
     @Bindable var session: PlayerSession
+    #if DEBUG
+    /// MAUNA_SNAPSHOT_CHOOSING=1 renders the card open.
+    @State private var choosing = ProcessInfo.processInfo.environment["MAUNA_SNAPSHOT_CHOOSING"] != nil
+    #else
+    @State private var choosing = false
+    #endif
+    @Environment(\.colorScheme) private var scheme
+
+    private var canChoose: Bool { PlayerID.installed.count > 1 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                AppIconView(bundleID: session.player.bundleID, size: 28)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(session.player.displayName)
-                        .font(.body.weight(.medium))
-                    Text(stateText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .id(stateText)
-                        .transition(.blurCrossfade)
-                }
-                .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: stateText)
-                Spacer(minLength: 0)
-                Text(percentText)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-            }
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(10)
 
-            if session.player.isBrowser {
-                // The page owns its volume: Mauna only lowers and pauses it, then hands it back.
-                Label("Volume follows YouTube Music", systemImage: "slider.horizontal.below.rectangle")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "speaker.fill")
-                    MaunaSlider(value: $session.normalVolume, range: 0.1...1, step: 0.01)
-                        .accessibilityLabel("Normal volume")
-                    Image(systemName: "speaker.wave.3.fill")
+            if choosing {
+                PlayerList(current: session.player) { player in
+                    withAnimation(.maunaSpring) {
+                        session.select(player)
+                        choosing = false
+                    }
                 }
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 4)
+                .padding(.bottom, 4)
+                // Unfolds inside the card: fades in while settling a few points down from under the header.
+                .transition(.opacity.combined(with: .offset(y: -8)).animation(.maunaEaseOut(0.2)))
+            } else {
+                volumeRow
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                    .transition(.opacity.animation(.maunaEaseOut(0.15)))
             }
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.popRow))
+        .clipShape(shape)   // nothing draws outside the card while it unfolds or folds
+        .background {
+            ZStack(alignment: .topLeading) {
+                shape.fill(.popRow)
+                // The player's colour, glowing from behind its icon. Changes with the player.
+                RadialGradient(
+                    colors: [session.player.tint.opacity(scheme == .dark ? 0.26 : 0.17), .clear],
+                    center: UnitPoint(x: 0.1, y: 0), startRadius: 0, endRadius: 170
+                )
+                .animation(.maunaEaseOut(0.35), value: session.player)
+            }
+            .clipShape(shape)
+            .shadow(color: .black.opacity(scheme == .dark ? 0.25 : 0.06), radius: 6, y: 3)
+        }
+        .overlay {
+            shape.strokeBorder(.primary.opacity(scheme == .dark ? 0.06 : 0.05), lineWidth: 0.5)
+            shape.strokeBorder(
+                LinearGradient(colors: [.white.opacity(scheme == .dark ? 0.16 : 0.7), .clear],
+                               startPoint: .top, endPoint: .init(x: 0.5, y: 0.25)),
+                lineWidth: 0.5
+            )
+        }
+    }
+
+    /// Icon, name and state, then play/pause, then the round button that opens the list of players.
+    /// Tapping the name opens the list too.
+    private var header: some View {
+        HStack(spacing: 10) {
+            Button(action: toggleChooser) {
+                HStack(spacing: 11) {
+                    PlayerIcon(player: session.player, size: 40)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(session.player.displayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .lineLimit(1)
+                        Text(stateText)
+                            .font(.subheadline)
+                            .foregroundStyle(session.hold != .none ? AnyShapeStyle(.accentText) : AnyShapeStyle(.secondary))
+                            .lineLimit(1)
+                            .id(stateText)
+                            .transition(.blurCrossfade)
+                    }
+                    .animation(.maunaEaseOut(MotionDuration.textCrossfade), value: stateText)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressScaleButtonStyle())
+            .help(canChoose ? "Choose the player Mauna controls" : "")
+            .accessibilityLabel("\(session.player.fullName), \(stateText)")
+            .accessibilityHint(canChoose ? "Choose another player" : "")
+
+            PlayPauseButton(session: session)
+
+            if canChoose {
+                Button(action: toggleChooser) { ChooseButtonFace(isOpen: choosing) }
+                    .buttonStyle(PressScaleButtonStyle())
+                    .accessibilityLabel(choosing ? "Close players" : "Choose player")
+            }
+        }
+    }
+
+    private func toggleChooser() {
+        guard canChoose else { return }
+        withAnimation(.maunaSpring) { choosing.toggle() }
+    }
+
+    @ViewBuilder private var volumeRow: some View {
+        if session.player.isBrowser {
+            // The page owns its volume: Mauna only lowers and pauses it, then hands it back.
+            HStack(spacing: 6) {
+                Image(systemName: "slider.horizontal.below.rectangle")
+                Text("Volume follows YouTube Music")
+                Spacer(minLength: 0)
+                Text(percentText).monospacedDigit().contentTransition(.numericText())
+            }
+            .font(.subheadline)
+            .foregroundStyle(.tertiary)
+        } else {
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.fill")
+                    .font(.system(size: 10))
+                MaunaSlider(value: $session.normalVolume, range: 0.1...1, step: 0.01)
+                    .accessibilityLabel("Normal volume")
+                Text(percentText)
+                    .font(.subheadline)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .frame(width: 32, alignment: .trailing)
+            }
+            .foregroundStyle(.tertiary)
+        }
     }
 
     /// Native players: the normal volume you set. YouTube Music: the level you hear now.
@@ -194,7 +293,9 @@ private struct PlayerCard: View {
         return "\(Int((session.normalVolume * 100).rounded()))%"
     }
 
+    /// "Playing", "Lowered by Mauna". Browser players say where: "Playing in Chrome".
     private var stateText: String {
+        let place = session.player.browserName.map { " in \($0)" } ?? ""
         guard session.isRunning else { return session.player.browserName.map { "\($0) isn't open" } ?? "Not open" }
         if session.player.isBrowser, session.playback == .stopped, session.hold == .none { return "No YouTube Music tab open" }
         switch session.hold {
@@ -202,10 +303,156 @@ private struct PlayerCard: View {
         case .ducked: return "Lowered by Mauna"
         case .none:
             switch session.playback {
-            case .playing: return "Playing"
-            case .paused:  return "Paused"
+            case .playing: return "Playing\(place)"
+            case .paused:  return "Paused\(place)"
             case .stopped, nil: return "Nothing playing"
             }
+        }
+    }
+}
+
+/// Play/pause for the player. A raised round face, like the player's own transport button.
+/// While Mauna holds the music paused, play brings it back exactly as pressing play in the player would.
+private struct PlayPauseButton: View {
+    let session: PlayerSession
+
+    private var showsPause: Bool { session.hold != .paused && session.playback == .playing }
+
+    var body: some View {
+        Button { session.togglePlayback() } label: {
+            Image(systemName: showsPause ? "pause.fill" : "play.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .offset(x: showsPause ? 0 : 1)   // a play triangle looks centred a touch to the right
+                .contentTransition(.symbolEffect(.replace))
+                .foregroundStyle(.primary)
+                .frame(width: 32, height: 32)
+                .background {
+                    Circle().fill(.control)
+                        .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
+                }
+                .overlay {
+                    Circle().strokeBorder(.black.opacity(0.06), lineWidth: 0.5)
+                    Circle().strokeBorder(
+                        LinearGradient(colors: [.white.opacity(0.22), .clear], startPoint: .top, endPoint: .center),
+                        lineWidth: 0.5
+                    )
+                }
+        }
+        .buttonStyle(PressScaleButtonStyle())
+        .disabled(!session.canTogglePlayback)
+        .opacity(session.canTogglePlayback ? 1 : 0.4)
+        .help(showsPause ? "Pause" : (session.hold == .paused ? "Bring music back" : "Play"))
+        .accessibilityLabel(showsPause ? "Pause" : "Play")
+    }
+}
+
+/// The small round control at the end of the player row: ⌃⌄ at rest, ✕-like "done" chevron when open.
+private struct ChooseButtonFace: View {
+    let isOpen: Bool
+
+    var body: some View {
+        Image(systemName: "chevron.down")
+            .font(.system(size: 10, weight: .bold))
+            .rotationEffect(.degrees(isOpen ? 180 : 0))
+            .foregroundStyle(isOpen ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+            .frame(width: 24, height: 24)
+            .background {
+                ZStack {
+                    Circle().fill(.well)
+                    Circle().fill(LinearGradient.accentFill).opacity(isOpen ? 1 : 0)
+                }
+            }
+            .overlay(Circle().strokeBorder(.primary.opacity(0.06), lineWidth: 0.5))
+            .animation(.maunaEaseOut(0.2), value: isOpen)
+    }
+}
+
+/// Your installed players, one row each: icon, name, where it plays or whether it's open, and a check
+/// on the one Mauna controls. Rows light up under the pointer.
+private struct PlayerList: View {
+    let current: PlayerID
+    let choose: (PlayerID) -> Void
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Rectangle().fill(.hairline).frame(height: 0.5).padding(.horizontal, 8).padding(.bottom, 4)
+            ForEach(PlayerID.installed) { player in
+                let isOn = player == current
+                Button { choose(player) } label: {
+                    HStack(spacing: 10) {
+                        PlayerIcon(player: player, size: 26)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(player.displayName)
+                                .font(.body.weight(isOn ? .semibold : .regular))
+                            Text(detail(for: player))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.accentText)
+                            .opacity(isOn ? 1 : 0)
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(height: 40)
+                    .contentShape(Rectangle())
+                    .rowHover(cornerRadius: 9, isActive: isOn)
+                }
+                .buttonStyle(PressScaleButtonStyle())
+                .accessibilityLabel(player.fullName)
+                .accessibilityAddTraits(isOn ? .isSelected : [])
+            }
+        }
+    }
+
+    private func detail(for player: PlayerID) -> String {
+        if let browser = player.browserName {
+            return player.isRunning ? "In \(browser)" : "In \(browser) · not open"
+        }
+        return player.isRunning ? "Open" : "Not open"
+    }
+}
+
+/// A player's icon. YouTube Music is its browser's icon with the red play mark.
+private struct PlayerIcon: View {
+    let player: PlayerID
+    let size: CGFloat
+
+    var body: some View {
+        AppIconView(bundleID: player.bundleID, size: size)
+            .overlay(alignment: .bottomTrailing) {
+                if player.isBrowser { MusicMark(size: size * 0.44).offset(x: size * 0.08, y: size * 0.08) }
+            }
+    }
+}
+
+/// A small red play mark on a browser's icon: this is YouTube Music in that browser.
+struct MusicMark: View {
+    let size: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(Color(red: 0.93, green: 0.13, blue: 0.13))
+            .overlay(
+                Image(systemName: "play.fill")
+                    .font(.system(size: size * 0.42, weight: .bold))
+                    .foregroundStyle(.white)
+                    .offset(x: size * 0.03)
+            )
+            .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: max(1, size * 0.1)))
+            .frame(width: size, height: size)
+            .shadow(color: .black.opacity(0.2), radius: 0.5, y: 0.5)
+    }
+}
+
+extension PlayerID {
+    /// The player's own colour, for the glow behind its card.
+    var tint: Color {
+        switch self {
+        case .spotify: Color(red: 0.11, green: 0.73, blue: 0.33)
+        case .appleMusic: Color(red: 0.98, green: 0.18, blue: 0.28)
+        case .youTubeMusicChrome, .youTubeMusicSafari: Color(red: 1.0, green: 0.1, blue: 0.15)
         }
     }
 }

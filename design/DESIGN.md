@@ -15,7 +15,7 @@ Based on Emil Kowalski's design-engineering rules ([emilkowalski/skills](https:/
 
 ## Colour
 
-- One accent (dusk indigo). It means "Mauna is acting now", plus the one primary button per view. Accent surfaces use the top-lit gradient (`LinearGradient.accentFill`), never a flat fill. A disabled primary button turns neutral, never pale lavender.
+- One accent (dusk indigo). It means "Mauna is acting now", plus the one primary button per view. The exception is the popover's status tile, which is Mauna's face: always indigo (deep at rest, bright with a soft glow while Mauna acts), and grey only when Mauna is off. Accent surfaces use the top-lit gradient (`LinearGradient.accentFill`), never a flat fill. A disabled primary button turns neutral, never pale lavender.
 - Trigger badges are quiet at rest (tertiary symbol + word, no pill) and gain an accent pill only while that rule is in charge.
 - Neutrals are macOS semantic colours. Never hard-code greys in Swift.
 - No green for playing, no red for paused, no colour-coded trigger types. Triggers differ by glyph + word.
@@ -68,7 +68,7 @@ Decide in this order: **should it animate → why → easing → duration.**
 
 ## Icon
 
-- The wave, 5 bars on an 18pt canvas, drawn in code from the glyph tokens (`WaveGlyph.swift`). States: playing, ducked, paused, off (35% opacity).
+- The wave, 5 bars on an 18pt canvas, drawn in code from the glyph tokens (`WaveGlyph.swift`). States: playing (full wave), ducked (low wave), paused (the bars slide together into a pause mark ❙❙), off (35% opacity in the menu bar; a grey tile in the popover).
 - Menu bar: template `NSImage`, swaps instantly. In Mauna's own UI: `WaveGlyphView`, which morphs bar heights on the default spring (crossfade under Reduce Motion).
 - Same glyph = same sound. "Quieted by you" and "Lowered for Xcode" share the low-bars glyph.
 

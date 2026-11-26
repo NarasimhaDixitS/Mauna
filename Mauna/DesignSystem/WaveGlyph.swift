@@ -12,7 +12,8 @@ nonisolated enum GlyphState: CaseIterable, Hashable, Sendable {
         switch self {
         case .playing, .off: BarHeights(6, 12, 16, 10, 5)
         case .ducked:        BarHeights(3, 5, 7, 4, 3)
-        case .paused:        BarHeights(2, 2, 2, 2, 2)
+        // A pause mark: the bars slide together into two, so the wave morphs into ❙❙.
+        case .paused:        BarHeights.pauseMark
         }
     }
 
@@ -36,12 +37,13 @@ nonisolated enum WaveGlyph {
     static let minBarHeight: CGFloat = 2
     static let brandMark = BarHeights(6, 12, 8, 3, 2)
 
-    /// Bar rects in the 18pt canvas, centred on y = 9. Origin top-left.
-    static func rects(_ heights: BarHeights, in size: CGFloat = canvas) -> [CGRect] {
+    /// Bar rects in the 18pt canvas, centred on y = 9. Origin top-left. Bars with no width are hidden.
+    static func rects(_ bars: BarHeights, in size: CGFloat = canvas) -> [CGRect] {
         let scale = size / canvas
-        return zip(barX, heights.values).map { x, h in
-            let h = max(minBarHeight, h)
-            return CGRect(x: x * scale, y: (canvas / 2 - h / 2) * scale, width: barWidth * scale, height: h * scale)
+        return bars.bars.compactMap { bar in
+            guard bar.width > 0.05 else { return nil }
+            let h = max(minBarHeight, bar.height)
+            return CGRect(x: bar.x * scale, y: (canvas / 2 - h / 2) * scale, width: bar.width * scale, height: h * scale)
         }
     }
 }
@@ -54,7 +56,8 @@ extension WaveGlyph {
         let image = NSImage(size: NSSize(width: canvas, height: canvas), flipped: true) { _ in
             NSColor.black.withAlphaComponent(state.opacity).setFill()
             for rect in rects(state.bars) {
-                NSBezierPath(roundedRect: rect, xRadius: barWidth / 2, yRadius: barWidth / 2).fill()
+                let radius = min(rect.width, rect.height) / 2
+                NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
             }
             return true
         }
@@ -69,17 +72,31 @@ extension WaveGlyph {
 
 // MARK: - SwiftUI
 
-/// Five bar heights, animatable so the glyph can morph on a spring.
+/// Five bars (x, width, height each, in the 18pt canvas), animatable so the glyph can morph on a spring:
+/// heights for playing and lowered, and sliding together into a pause mark for paused.
 nonisolated struct BarHeights: VectorArithmetic, Sendable {
+    /// x0, w0, h0, x1, w1, h1, …
     var values: [CGFloat]
 
+    /// The wave: five bars in their usual places, at these heights.
     init(_ a: CGFloat, _ b: CGFloat, _ c: CGFloat, _ d: CGFloat, _ e: CGFloat) {
-        values = [a, b, c, d, e]
+        values = zip(WaveGlyph.barX, [a, b, c, d, e]).flatMap { [$0, WaveGlyph.barWidth, $1] }
     }
 
     private init(values: [CGFloat]) { self.values = values }
 
-    static var zero: BarHeights { BarHeights(values: Array(repeating: 0, count: 5)) }
+    /// ❙❙ : the outer pairs merge into two wider bars, and the middle bar shrinks away between them.
+    static let pauseMark = BarHeights(values: [
+        5.2, 2.8, 11,   5.2, 2.8, 11,
+        8.5, 0, 0,
+        10, 2.8, 11,    10, 2.8, 11,
+    ])
+
+    var bars: [(x: CGFloat, width: CGFloat, height: CGFloat)] {
+        stride(from: 0, to: values.count, by: 3).map { (values[$0], values[$0 + 1], values[$0 + 2]) }
+    }
+
+    static var zero: BarHeights { BarHeights(values: Array(repeating: 0, count: 15)) }
 
     static func + (l: BarHeights, r: BarHeights) -> BarHeights {
         BarHeights(values: zip(l.values, r.values).map(+))
@@ -109,9 +126,9 @@ nonisolated struct WaveShape: Shape {
     func path(in rect: CGRect) -> Path {
         let side = min(rect.width, rect.height)
         let origin = CGPoint(x: rect.midX - side / 2, y: rect.midY - side / 2)
-        let radius = WaveGlyph.barWidth / 2 * side / WaveGlyph.canvas
         var path = Path()
         for bar in WaveGlyph.rects(heights, in: side) {
+            let radius = min(bar.width, bar.height) / 2
             path.addRoundedRect(in: bar.offsetBy(dx: origin.x, dy: origin.y),
                                 cornerSize: CGSize(width: radius, height: radius))
         }

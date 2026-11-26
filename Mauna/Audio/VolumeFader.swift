@@ -52,9 +52,13 @@ enum VolumeFader {
             // Players take whole percents; skip steps that wouldn't change anything.
             let percent = Int((volume * 100).rounded())
             if percent != lastPercent || t >= 1 {
-                try await controller.setVolume(volume)
-                lastPercent = percent
-                onStep(volume)
+                do {
+                    try await controller.setVolume(volume)
+                    lastPercent = percent
+                    onStep(volume)
+                } catch ScriptError.timedOut where t < 1 {
+                    // The player stalled on one step. Keep going: the next step jumps to where the fade is now.
+                }
             }
             if t >= 1 { return }
             try await Task.sleep(for: tick)

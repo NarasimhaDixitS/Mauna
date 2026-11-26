@@ -95,10 +95,17 @@ final class PlayerSession {
         startPolling()
     }
 
+    /// Switch the player Mauna controls. The old one is let go, never restarted: if a rule paused it,
+    /// it stays paused at its normal volume; if one lowered it, it goes back to normal. Then whatever is in
+    /// charge (a rule, your quiet) applies to the new player at once.
+    #if DEBUG
+    /// Design renders: rules decide, but nothing is sent to the player.
+    var dryRun = false
+    #endif
+
     func select(_ player: PlayerID) {
         guard player != self.player else { return }
-        manualHold = .none
-        apply(.none, animated: false)
+        letGo()
         self.player = player
         UserDefaults.standard.set(player.rawValue, forKey: Keys.player)
         controller = player.makeController()
@@ -110,7 +117,50 @@ final class PlayerSession {
         resolve()   // rules still in charge apply to the new player
     }
 
+    /// Hand the current player back untouched: its normal volume, no hold, playback left as it is.
+    private func letGo() {
+        let previousHold = hold
+        hold = .none
+        guard previousHold != .none else { return }
+        // Its own task, not the work queue: the new player's first action would cancel it there.
+        let previous = work
+        previous?.cancel()
+        let controller = self.controller
+        Task { [weak self] in
+            await previous?.value
+            guard let self else { return }
+            let resting = await restingVolume(controller)
+            try? await controller.setVolume(resting)
+            try? await controller.releaseVolume()
+        }
+    }
+
     // MARK: Actions
+
+    /// The play/pause button on the player card.
+    /// - Mauna paused it: same as pressing play in the player. Music fades back in, and rules in charge
+    ///   step aside until their trigger ends.
+    /// - Playing (or lowered): pause. You paused it, so Mauna never starts it again when a rule ends.
+    /// - Paused by you: play.
+    func togglePlayback() {
+        guard isRunning else { return }
+        if hold == .paused {
+            release()
+            return
+        }
+        let pausing = playback == .playing
+        playback = pausing ? .paused : .playing   // answer the click now; the player confirms shortly
+        enqueue { _, controller in
+            if pausing { try await controller.pause() } else { try await controller.play() }
+        }
+    }
+
+    /// True when the play/pause button has something to act on.
+    var canTogglePlayback: Bool {
+        guard isRunning else { return false }
+        if player.isBrowser, playback == .stopped, hold == .none { return false }   // no tab
+        return true
+    }
 
     /// The rule engine's decision changed.
     func setRuleHold(_ target: Hold) {
@@ -153,6 +203,9 @@ final class PlayerSession {
     /// - anything → none: resume, or fade back up, to the normal volume.
     private func apply(_ target: Hold, animated: Bool = true) {
         guard target != hold else { return }
+        #if DEBUG
+        if dryRun { hold = target; return }
+        #endif
         let previousHold = hold
         hold = target   // set now, so a change that arrives mid-fade starts from here
         enqueue { session, controller in
@@ -193,7 +246,7 @@ final class PlayerSession {
     }
 
     private func duck(_ controller: any PlayerController, state: PlaybackState, from previousHold: Hold) async throws {
-        let target = await restingVolume(controller) * duckLevel
+        let target = AudioTiming.duckVolume(resting: await restingVolume(controller), level: duckLevel, curve: player.volumeCurve)
         switch (previousHold, state) {
         case (_, .playing):
             let start = try await controller.volume()
